@@ -36,6 +36,8 @@ This repository holds the Solvia API and is the entry point to the whole system.
 
 ## Repositories
 
+The working guide for the whole system (how the four repositories fit together, cross-repository changes) is [`workspace/CLAUDE.md`](workspace/CLAUDE.md): copy it to the folder that contains the four clones.
+
 Solvia is split into four independent repositories:
 
 | Repository                  | What it is                                                                  | Dev port | Docker port |
