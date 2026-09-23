@@ -118,7 +118,7 @@ Platform and business accounts are completely separate: a business account can't
 
 ## Local development
 
-Requirements: Node.js 22 (the backend accepts Node 20+) and PostgreSQL 14+. You can run only the database with Docker: `docker compose up -d postgres`.
+Requirements: Node.js 22 (the backend accepts Node 20+) and PostgreSQL 14+. No PostgreSQL installed? `npm run db:local` starts one (PostgreSQL 17 on `localhost:5432`, data in `.local-db/`, gitignored) without Docker; leave it running in its own terminal. With Docker you can also run only the database: `docker compose up -d postgres`.
 
 ### 1. Backend (this repository)
 
@@ -126,6 +126,7 @@ Requirements: Node.js 22 (the backend accepts Node 20+) and PostgreSQL 14+. You 
 cd solvia-backend
 cp .env.example .env          # adjust DATABASE_URL if needed
 npm install
+npm run db:local              # (separate terminal) local PostgreSQL, if you don't have one
 npx prisma migrate deploy     # or `npm run db:migrate` while changing the schema
 npm run db:seed               # platform admin + demo tenants, customers, receivables and access requests
 npm run dev                   # http://localhost:4000 (auto-reload)
@@ -468,6 +469,7 @@ List endpoints accept `page` and `pageSize` (max 100) and return `{ data, meta: 
 | Backend (this repository)                                             |                                                                                      |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `npm run dev`                                                         | Start with auto-reload (tsx)                                                         |
+| `npm run db:local`                                                    | Local PostgreSQL 17 on :5432 without Docker (data in `.local-db/`)                   |
 | `npm run build` / `npm start`                                         | Compile to `dist/` and run                                                           |
 | `npm run db:migrate`                                                  | Create and apply a migration (development, interactive)                              |
 | `npm run db:deploy`                                                   | Apply pending migrations                                                             |

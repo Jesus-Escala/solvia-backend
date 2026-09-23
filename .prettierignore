@@ -3,3 +3,5 @@ node_modules
 coverage
 storage
 prisma/migrations
+.local-db
+package-lock.json

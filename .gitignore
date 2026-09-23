@@ -10,6 +10,9 @@ coverage/
 .env.*
 !.env.example
 
+# Local development database (npm run db:local)
+.local-db/
+
 # Runtime storage (uploaded payment proofs, generated statements)
 storage/
 
