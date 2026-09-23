@@ -25,9 +25,12 @@ function agingKey(daysOverdue: number): AgingBucketKey {
   return 'days90plus';
 }
 
-/** Classic receivables aging: outstanding balance grouped by days past the due date. */
+/**
+ * Classic receivables aging: outstanding balance grouped by days past the due date.
+ * `count` lets one item stand for several receivables (e.g. balances pre-aggregated per due date).
+ */
 export function agingBuckets(
-  items: Array<{ dueDate: Date; outstanding: number }>,
+  items: Array<{ dueDate: Date; outstanding: number; count?: number }>,
   today: Date,
 ): AgingBucket[] {
   const buckets = new Map<AgingBucketKey, AgingBucket>(
@@ -37,7 +40,7 @@ export function agingBuckets(
     if (item.outstanding <= 0) continue;
     const bucket = buckets.get(agingKey(diffInDays(today, item.dueDate)))!;
     bucket.amount += item.outstanding;
-    bucket.count += 1;
+    bucket.count += item.count ?? 1;
   }
   return AGING_BUCKETS.map((key) => {
     const bucket = buckets.get(key)!;

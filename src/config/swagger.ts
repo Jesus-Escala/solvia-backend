@@ -275,6 +275,169 @@ export const openApiSpec = swaggerJsdoc({
                 },
               },
             },
+            period: {
+              allOf: [{ $ref: '#/components/schemas/AnalyticsPeriod' }],
+              description: 'Only when from/to/granularity is given',
+            },
+            periodTotals: {
+              type: 'object',
+              description: 'Only when from/to/granularity is given',
+              properties: {
+                collected: { $ref: '#/components/schemas/Metric' },
+                newTenants: { $ref: '#/components/schemas/Metric' },
+                payments: { $ref: '#/components/schemas/Metric' },
+              },
+            },
+            periodSeries: {
+              type: 'array',
+              description: 'Only when from/to/granularity is given',
+              items: {
+                type: 'object',
+                properties: {
+                  bucket: { type: 'string', format: 'date' },
+                  collected: { type: 'number' },
+                  newTenants: { type: 'integer' },
+                },
+              },
+            },
+            generatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        Metric: {
+          type: 'object',
+          description: 'Value of the period and of the previous period (null when undefined)',
+          properties: {
+            value: { type: 'number', nullable: true },
+            previous: { type: 'number', nullable: true },
+          },
+        },
+        AmountCount: {
+          type: 'object',
+          properties: { amount: { type: 'number' }, count: { type: 'integer' } },
+        },
+        AnalyticsPeriod: {
+          type: 'object',
+          properties: {
+            from: { type: 'string', format: 'date' },
+            to: { type: 'string', format: 'date' },
+            granularity: { type: 'string', enum: ['day', 'week', 'month'] },
+            previous: {
+              type: 'object',
+              properties: {
+                from: { type: 'string', format: 'date' },
+                to: { type: 'string', format: 'date' },
+              },
+            },
+          },
+        },
+        DashboardAnalytics: {
+          type: 'object',
+          properties: {
+            period: { $ref: '#/components/schemas/AnalyticsPeriod' },
+            kpis: {
+              type: 'object',
+              properties: Object.fromEntries(
+                [
+                  'collected',
+                  'payments',
+                  'averagePayment',
+                  'issued',
+                  'receivablesIssued',
+                  'dueInPeriod',
+                  'collectionRate',
+                  'averageDaysToPay',
+                  'newCustomers',
+                ].map((key) => [key, { $ref: '#/components/schemas/Metric' }]),
+              ),
+            },
+            snapshot: {
+              type: 'object',
+              description: 'Current state of the portfolio (not period based)',
+              properties: {
+                outstanding: { type: 'number' },
+                overdue: { type: 'number' },
+                overdueRate: { type: 'number' },
+                openReceivables: { type: 'integer' },
+                customers: { type: 'integer' },
+                dueToday: { $ref: '#/components/schemas/AmountCount' },
+                dueNext30Days: { $ref: '#/components/schemas/AmountCount' },
+                overdueOver30Days: { $ref: '#/components/schemas/AmountCount' },
+              },
+            },
+            reminders: {
+              type: 'object',
+              description:
+                'Notification send attempts by the local date of sentAt. paidAfterReminder: share ' +
+                'of receivables with a sent reminder (pre-due, due or overdue) in the period that ' +
+                'got a payment dated within 7 days after it',
+              properties: {
+                sent: { $ref: '#/components/schemas/Metric' },
+                failed: { $ref: '#/components/schemas/Metric' },
+                byType: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      type: {
+                        type: 'string',
+                        enum: ['pre_due_reminder', 'due_reminder', 'overdue_reminder', 'statement'],
+                      },
+                      sent: { type: 'integer' },
+                      failed: { type: 'integer' },
+                    },
+                  },
+                },
+                paidAfterReminder: { $ref: '#/components/schemas/Metric' },
+              },
+            },
+            series: {
+              type: 'array',
+              description: 'One zero-filled bucket per day/week/month, oldest first',
+              items: {
+                type: 'object',
+                properties: {
+                  bucket: { type: 'string', format: 'date', description: 'Bucket start' },
+                  collected: { type: 'number' },
+                  issued: { type: 'number' },
+                  due: { type: 'number' },
+                  payments: { type: 'integer' },
+                },
+              },
+            },
+            byMethod: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  method: { type: 'string', enum: ['yape', 'plin', 'cash', 'bank_transfer'] },
+                  amount: { type: 'number' },
+                  count: { type: 'integer' },
+                },
+              },
+            },
+            byWeekday: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  weekday: { type: 'integer', minimum: 1, maximum: 7, description: '1 = Monday' },
+                  amount: { type: 'number' },
+                  count: { type: 'integer' },
+                },
+              },
+            },
+            topPayers: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  customerId: { type: 'string', format: 'uuid' },
+                  name: { type: 'string' },
+                  amount: { type: 'number' },
+                  payments: { type: 'integer' },
+                },
+              },
+            },
             generatedAt: { type: 'string', format: 'date-time' },
           },
         },

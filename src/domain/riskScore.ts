@@ -59,6 +59,12 @@ function settlementDate(receivable: RiskReceivableInput): Date | null {
   return null;
 }
 
+/** Due date of a receivable and the date it was paid in full (null while unpaid). */
+export interface RiskOutcome {
+  dueDate: Date;
+  settledOn: Date | null;
+}
+
 /**
  * Computes a customer's risk score from their receivable history. Three signals each add 0-2 points:
  * - on-time payment rate (below 80% = 1, below 50% = 2)
@@ -67,14 +73,27 @@ function settlementDate(receivable: RiskReceivableInput): Date | null {
  * Total points: 0-1 = low, 2-3 = medium, 4-6 = high. Customers without history are low risk.
  */
 export function calculateRiskScore(receivables: RiskReceivableInput[], today: Date): RiskScore {
+  return riskScoreFromOutcomes(
+    receivables.map((receivable) => ({
+      dueDate: receivable.dueDate,
+      settledOn: settlementDate(receivable),
+    })),
+    today,
+  );
+}
+
+/**
+ * Same score as `calculateRiskScore`, from receivables whose settlement date is already known
+ * (e.g. computed in SQL for the dashboard's risk distribution).
+ */
+export function riskScoreFromOutcomes(outcomes: RiskOutcome[], today: Date): RiskScore {
   let evaluated = 0;
   let paidOnTime = 0;
   let totalDaysLate = 0;
   let currentOverdueCount = 0;
 
-  for (const receivable of receivables) {
-    const settledOn = settlementDate(receivable);
-    const isPastDue = receivable.dueDate.getTime() < today.getTime();
+  for (const { dueDate, settledOn } of outcomes) {
+    const isPastDue = dueDate.getTime() < today.getTime();
 
     if (!settledOn && !isPastDue) {
       continue; // Not due yet: says nothing about payment behavior.
@@ -82,11 +101,11 @@ export function calculateRiskScore(receivables: RiskReceivableInput[], today: Da
 
     evaluated += 1;
     if (settledOn) {
-      const daysLate = Math.max(0, diffInDays(settledOn, receivable.dueDate));
+      const daysLate = Math.max(0, diffInDays(settledOn, dueDate));
       totalDaysLate += daysLate;
       if (daysLate === 0) paidOnTime += 1;
     } else {
-      totalDaysLate += diffInDays(today, receivable.dueDate);
+      totalDaysLate += diffInDays(today, dueDate);
       currentOverdueCount += 1;
     }
   }

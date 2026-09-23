@@ -25,9 +25,32 @@ export const dashboardRouter = Router();
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/CashFlow' }
+ * /dashboard/analytics:
+ *   get:
+ *     tags: [Dashboard]
+ *     summary: Period analytics (KPIs vs the previous period, series, breakdowns, top payers)
+ *     description: >
+ *       Aggregated in SQL. The previous period is the same number of days immediately before
+ *       `from`. Defaults to the current month to date. Ranges longer than 3 years or with
+ *       `from` after `to` are rejected with `VALIDATION_ERROR`.
+ *     parameters:
+ *       - { in: query, name: from, schema: { type: string, format: date }, description: 'Inclusive (YYYY-MM-DD). Default: first day of the month of `to`' }
+ *       - { in: query, name: to, schema: { type: string, format: date }, description: 'Inclusive (YYYY-MM-DD). Default: today (APP_TIMEZONE)' }
+ *       - in: query
+ *         name: granularity
+ *         schema: { type: string, enum: [day, week, month] }
+ *         description: 'Default: day up to 31 days, ISO week up to 120 days, month beyond'
+ *     responses:
+ *       200:
+ *         description: Analytics
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/DashboardAnalytics' }
+ *       400: { $ref: '#/components/responses/ValidationError' }
  */
 dashboardRouter.get('/dashboard/summary', dashboardController.summary);
 dashboardRouter.get('/dashboard/cash-flow', dashboardController.cashFlow);
+dashboardRouter.get('/dashboard/analytics', dashboardController.analytics);
 
 /**
  * @openapi

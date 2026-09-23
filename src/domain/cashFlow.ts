@@ -13,6 +13,8 @@ export type CashFlowGrouping = 'week' | 'month';
 export interface CashFlowItem {
   dueDate: Date;
   outstanding: number;
+  /** Receivables this item stands for (default 1), e.g. balances pre-aggregated per due date. */
+  count?: number;
 }
 
 export interface CashFlowBucket {
@@ -86,11 +88,12 @@ export function projectCashFlow(
 
   for (const item of items) {
     if (item.outstanding <= 0) continue;
+    const count = item.count ?? 1;
     totalOutstanding += item.outstanding;
 
     if (item.dueDate.getTime() < today.getTime()) {
       overdue.amount += item.outstanding;
-      overdue.count += 1;
+      overdue.count += count;
       continue;
     }
 
@@ -101,10 +104,10 @@ export function projectCashFlow(
     );
     if (bucket) {
       bucket.amount += item.outstanding;
-      bucket.count += 1;
+      bucket.count += count;
     } else {
       later.amount += item.outstanding;
-      later.count += 1;
+      later.count += count;
     }
   }
 

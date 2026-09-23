@@ -1,9 +1,12 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { env } from '../config/env';
+import { todayInTimezone } from '../lib/dates';
 import { dashboardService } from '../services/dashboard.service';
 import { monthlyReportService } from '../services/monthlyReport.service';
 import { notificationService } from '../services/notification.service';
 import { reminderService } from '../services/reminder.service';
+import { analyticsQuerySchema } from '../validators/analytics.schemas';
 import { paginationSchema } from '../validators/common.schemas';
 import {
   cashFlowQuerySchema,
@@ -25,6 +28,11 @@ export const dashboardController = {
   async cashFlow(req: Request, res: Response) {
     const { groupBy, periods } = cashFlowQuerySchema.parse(req.query);
     res.json(await dashboardService.cashFlow(groupBy, periods));
+  },
+
+  async analytics(req: Request, res: Response) {
+    const period = analyticsQuerySchema(todayInTimezone(env.APP_TIMEZONE)).parse(req.query);
+    res.json(await dashboardService.analytics(period));
   },
 
   async listReports(_req: Request, res: Response) {
