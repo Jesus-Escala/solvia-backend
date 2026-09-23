@@ -1,9 +1,11 @@
 import { z } from 'zod';
 
-const email = z
+export const emailSchema = z
   .email('Invalid email address')
   .max(254)
   .transform((value) => value.toLowerCase().trim());
+
+const email = emailSchema;
 
 /**
  * Password policy for new passwords. Mirrored by the register form checklist
@@ -43,14 +45,13 @@ export const googleSignInSchema = z.object({
   industry: z.string().trim().max(80).optional(),
 });
 
-export const createUserSchema = z.object({
-  name: z.string().trim().min(2).max(120),
-  email,
-  password: passwordSchema,
-  role: z.enum(['admin', 'collector']).default('collector'),
+export const changePasswordSchema = z.object({
+  /** Optional only for Google-only accounts, which have no password yet. */
+  currentPassword: z.string().min(1, 'Current password is required').max(128).optional(),
+  newPassword: passwordSchema,
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
-export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type GoogleSignInInput = z.infer<typeof googleSignInSchema>;

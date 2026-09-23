@@ -1,14 +1,22 @@
 import type { Request, Response } from 'express';
 import { getPlatformAuth } from '../middleware/authenticate';
+import { accessRequestService } from '../services/accessRequest.service';
 import { platformService } from '../services/platform.service';
 import { platformAuthService } from '../services/platformAuth.service';
+import {
+  listAccessRequestsQuerySchema,
+  updateAccessRequestSchema,
+} from '../validators/accessRequest.schemas';
 import { idParamSchema } from '../validators/common.schemas';
 import {
+  createTenantSchema,
   listTenantsQuerySchema,
   platformLoginSchema,
   platformRefreshSchema,
+  tenantUserParamsSchema,
   updateTenantSchema,
 } from '../validators/platform.schemas';
+import { createTeamUserSchema, updateTeamUserSchema } from '../validators/user.schemas';
 
 export const platformController = {
   async login(req: Request, res: Response) {
@@ -43,5 +51,38 @@ export const platformController = {
     const { id } = idParamSchema.parse(req.params);
     const input = updateTenantSchema.parse(req.body);
     res.json(await platformService.updateTenant(id, input));
+  },
+
+  async createTenant(req: Request, res: Response) {
+    const input = createTenantSchema.parse(req.body);
+    res.status(201).json(await platformService.createTenant(input));
+  },
+
+  async createTenantUser(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    const input = createTeamUserSchema.parse(req.body);
+    res.status(201).json(await platformService.createTenantUser(id, input));
+  },
+
+  async updateTenantUser(req: Request, res: Response) {
+    const { id, userId } = tenantUserParamsSchema.parse(req.params);
+    const input = updateTeamUserSchema.parse(req.body);
+    res.json(await platformService.updateTenantUser(id, userId, input));
+  },
+
+  async resetTenantUserPassword(req: Request, res: Response) {
+    const { id, userId } = tenantUserParamsSchema.parse(req.params);
+    res.json(await platformService.resetTenantUserPassword(id, userId));
+  },
+
+  async listAccessRequests(req: Request, res: Response) {
+    const query = listAccessRequestsQuerySchema.parse(req.query);
+    res.json(await accessRequestService.list(query));
+  },
+
+  async updateAccessRequest(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    const input = updateAccessRequestSchema.parse(req.body);
+    res.json(await accessRequestService.updateStatus(id, input));
   },
 };

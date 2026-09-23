@@ -62,6 +62,12 @@ enum NotificationStatus {
   failed
 }
 
+enum AccessRequestStatus {
+  pending
+  converted
+  dismissed
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -82,21 +88,28 @@ model Tenant {
   messageTemplates MessageTemplate[]
   reminderSettings ReminderSettings?
   monthlyReports   MonthlyReport[]
+  accessRequests   AccessRequest[]
 
   @@map("tenants")
 }
 
 model User {
-  id           String   @id @default(uuid())
-  tenantId     String
-  name         String
-  email        String   @unique
+  id                 String    @id @default(uuid())
+  tenantId           String
+  name               String
+  email              String    @unique
   /// Null for accounts that only sign in with Google.
-  passwordHash String?
+  passwordHash       String?
   /// Google account subject ("sub"), set when the user signs in with Google.
-  googleId     String?  @unique
-  role         UserRole @default(collector)
-  createdAt    DateTime @default(now())
+  googleId           String?   @unique
+  role               UserRole  @default(collector)
+  /// Inactive users cannot sign in or refresh their session.
+  active             Boolean   @default(true)
+  /// Set when the user received a temporary password; cleared by changing it.
+  mustChangePassword Boolean   @default(false)
+  /// Last successful password or Google sign-in.
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -237,4 +250,27 @@ model PlatformAdmin {
   lastLoginAt  DateTime?
 
   @@map("platform_admins")
+}
+
+/// "Request access" submission from the landing page. Not tenant-owned: it exists before the
+/// business does, and points to the tenant created from it once converted.
+model AccessRequest {
+  id           String              @id @default(uuid())
+  businessName String
+  contactName  String
+  email        String
+  phone        String
+  industry     String?
+  message      String?
+  status       AccessRequestStatus @default(pending)
+  /// Tenant created from this request (set when converted).
+  tenantId     String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@map("access_requests")
 }

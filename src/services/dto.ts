@@ -1,10 +1,12 @@
 import type {
+  AccessRequest,
   Customer,
   MonthlyReport,
   Notification,
   Payment,
   Prisma,
   Receivable,
+  User,
 } from '@prisma/client';
 import { outstandingAmount } from '../domain/receivableStatus';
 import { formatDateOnly } from '../lib/dates';
@@ -75,6 +77,51 @@ export function toMonthlyReportDto(report: MonthlyReport) {
   };
 }
 
+/** Team member as listed to tenant admins and in the platform backoffice. */
+export function toTenantUserDto(
+  user: Pick<
+    User,
+    | 'id'
+    | 'name'
+    | 'email'
+    | 'role'
+    | 'active'
+    | 'mustChangePassword'
+    | 'googleId'
+    | 'lastLoginAt'
+    | 'createdAt'
+  >,
+) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    active: user.active,
+    mustChangePassword: user.mustChangePassword,
+    hasGoogle: user.googleId !== null,
+    lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+    createdAt: user.createdAt.toISOString(),
+  };
+}
+
+export function toAccessRequestDto(request: AccessRequest) {
+  return {
+    id: request.id,
+    businessName: request.businessName,
+    contactName: request.contactName,
+    email: request.email,
+    phone: request.phone,
+    industry: request.industry,
+    message: request.message,
+    status: request.status,
+    tenantId: request.tenantId,
+    createdAt: request.createdAt.toISOString(),
+  };
+}
+
 export type CustomerDto = ReturnType<typeof toCustomerDto>;
 export type ReceivableDto = ReturnType<typeof toReceivableDto>;
 export type PaymentDto = ReturnType<typeof toPaymentDto>;
+export type TenantUserDto = ReturnType<typeof toTenantUserDto>;
+export type AccessRequestDto = ReturnType<typeof toAccessRequestDto>;

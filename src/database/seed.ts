@@ -1,4 +1,4 @@
-import type { PaymentMethod, TenantPlan } from '@prisma/client';
+import type { AccessRequestStatus, PaymentMethod, TenantPlan } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { env } from '../config/env';
 import { deriveReceivableStatus } from '../domain/receivableStatus';
@@ -123,6 +123,74 @@ const TENANTS: TenantSeed[] = [
     ],
   },
 ];
+
+interface AccessRequestSeed {
+  businessName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  industry?: string;
+  message?: string;
+  status: AccessRequestStatus;
+  /** Submission date relative to today, in days. */
+  createdIn: number;
+}
+
+/** "Request access" submissions from the landing page, waiting in the backoffice. */
+const ACCESS_REQUESTS: AccessRequestSeed[] = [
+  {
+    businessName: 'Botica Santa Rosa',
+    contactName: 'Julia Condori',
+    email: 'julia.condori@boticasantarosa.pe',
+    phone: '+51 954 123 456',
+    industry: 'Pharmacy',
+    message:
+      'We have a pharmacy in Cayma, Arequipa, and sell on credit to about 60 regular customers. ' +
+      'We track everything in a notebook and would like to send WhatsApp reminders.',
+    status: 'pending',
+    createdIn: -1,
+  },
+  {
+    businessName: 'Ferreteria Norte Trujillo',
+    contactName: 'Victor Alvarado',
+    email: 'valvarado@ferreterianorte.pe',
+    phone: '+51 944 876 210',
+    industry: 'Hardware',
+    message:
+      'Hardware store in Trujillo. Many builders pay at 30 days and we lose track of who is ' +
+      'late. Is there a plan for two collectors?',
+    status: 'pending',
+    createdIn: -3,
+  },
+  {
+    businessName: 'Restaurante La Sazon de Mama',
+    contactName: 'Rocio Paredes',
+    email: 'rocio@lasazondemama.pe',
+    phone: '+51 987 222 314',
+    industry: 'Restaurant',
+    message: 'Restaurant in Surquillo, Lima. We give monthly lunch credit to nearby offices.',
+    status: 'pending',
+    createdIn: -6,
+  },
+  {
+    businessName: 'Minimarket Los Olivos',
+    contactName: 'Hugo Salas',
+    email: 'hugo.salas@gmail.com',
+    phone: '+51 912 345 000',
+    industry: 'Retail',
+    status: 'dismissed',
+    createdIn: -20,
+  },
+];
+
+async function seedAccessRequests(today: Date) {
+  for (const { createdIn, ...request } of ACCESS_REQUESTS) {
+    // Midday local time (UTC-5) so the date shown in the backoffice matches the offset.
+    const createdAt = new Date(addDays(today, createdIn).getTime() + 17 * 60 * 60 * 1000);
+    await basePrisma.accessRequest.create({ data: { ...request, createdAt } });
+  }
+  logger.info(`Seeded ${ACCESS_REQUESTS.length} access requests`);
+}
 
 /** Receivable plans per payment behavior. Offsets are relative to today. */
 function plansFor(profile: Profile, base: number): ReceivablePlan[] {
@@ -261,7 +329,12 @@ async function seedTenant(
 ) {
   const { tenant } = await tenantRepository.createWithAdmin({
     tenant: { name: seed.name, industry: seed.industry, plan: seed.plan },
-    admin: { name: seed.adminName, email: `admin@${seed.domain}`, passwordHash },
+    admin: {
+      name: seed.adminName,
+      email: `admin@${seed.domain}`,
+      passwordHash,
+      mustChangePassword: false,
+    },
   });
   await basePrisma.user.create({
     data: {
@@ -270,6 +343,8 @@ async function seedTenant(
       email: `collector@${seed.domain}`,
       passwordHash,
       role: 'collector',
+      active: true,
+      mustChangePassword: false,
     },
   });
 
@@ -341,6 +416,7 @@ export async function seed() {
   for (const [index, tenant] of TENANTS.entries()) {
     await seedTenant(tenant, index, passwordHash, today);
   }
+  await seedAccessRequests(today);
 }
 
 /**
@@ -364,6 +440,7 @@ async function runCli() {
   if (force) {
     logger.warn('--force: deleting all existing data');
     await basePrisma.tenant.deleteMany(); // Cascades to every tenant-owned table.
+    await basePrisma.accessRequest.deleteMany();
     await seedPlatformAdmin();
     await seed();
   } else if (!(await seedIfEmpty())) {

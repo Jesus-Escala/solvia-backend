@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { getAuth } from '../middleware/tenantScope';
 import { authService } from '../services/auth.service';
 import {
-  createUserSchema,
+  changePasswordSchema,
   googleSignInSchema,
   loginSchema,
   refreshSchema,
@@ -39,12 +39,8 @@ export const authController = {
     res.json(await authService.me(getAuth(req).userId));
   },
 
-  async listUsers(_req: Request, res: Response) {
-    res.json({ data: await authService.listUsers() });
-  },
-
-  async createUser(req: Request, res: Response) {
-    const input = createUserSchema.parse(req.body);
-    res.status(201).json(await authService.createUser(input));
+  async changePassword(req: Request, res: Response) {
+    const input = changePasswordSchema.parse(req.body);
+    res.json(await authService.changePassword(getAuth(req).userId, input));
   },
 };

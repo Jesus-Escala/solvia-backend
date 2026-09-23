@@ -43,4 +43,11 @@ describe('token realms', () => {
     const platform = tokens.issuePlatformTokens(platformAdmin);
     expect(() => tokens.verifyPlatformAccessToken(platform.refreshToken)).toThrow();
   });
+
+  it('marks access tokens of users who must change their password', () => {
+    const pending = tokens.issueTokens({ ...tenantUser, mustChangePassword: true });
+    const regular = tokens.issueTokens({ ...tenantUser, mustChangePassword: false });
+    expect(tokens.verifyAccessToken(pending.accessToken).pwc).toBe(true);
+    expect(tokens.verifyAccessToken(regular.accessToken).pwc).toBeUndefined();
+  });
 });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { emailSchema } from './auth.schemas';
 import { paginationSchema } from './common.schemas';
 
 export {
@@ -24,5 +25,26 @@ export const updateTenantSchema = z
     message: 'At least one of plan or status is required',
   });
 
+/** Business created by the platform admin (managed onboarding) with its first admin user. */
+export const createTenantSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  industry: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .transform((value) => (value ? value : undefined)),
+  plan: planSchema.default('free'),
+  admin: z.object({ name: z.string().trim().min(2).max(120), email: emailSchema }),
+  /** Access request this business comes from; it is marked as converted. */
+  accessRequestId: z.uuid('Invalid identifier').optional(),
+});
+
+export const tenantUserParamsSchema = z.object({
+  id: z.uuid('Invalid identifier'),
+  userId: z.uuid('Invalid identifier'),
+});
+
+export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 export type ListTenantsQuery = z.infer<typeof listTenantsQuerySchema>;
 export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;

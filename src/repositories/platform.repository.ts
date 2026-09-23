@@ -1,5 +1,6 @@
 import { Prisma, type TenantPlan, type TenantStatus } from '@prisma/client';
 import { basePrisma } from '../lib/prisma';
+import { tenantUserSelect } from './user.repository';
 
 /**
  * Cross-tenant queries for the platform backoffice. Deliberately uses the unscoped client:
@@ -70,17 +71,7 @@ export const platformRepository = {
       where: { id },
       include: {
         ...tenantCountSelect,
-        users: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            createdAt: true,
-            googleId: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        },
+        users: { select: tenantUserSelect, orderBy: { createdAt: 'asc' } },
       },
     });
   },

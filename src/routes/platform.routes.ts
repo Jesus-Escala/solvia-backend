@@ -128,6 +128,50 @@ platformRouter.get('/tenants', platformController.listTenants);
 
 /**
  * @openapi
+ * /admin/tenants:
+ *   post:
+ *     tags: [Platform admin]
+ *     summary: Create a business and its first admin (managed onboarding)
+ *     description: |
+ *       Creates the tenant with the default message templates and reminder rules, plus its first
+ *       admin with a temporary password (returned only here; it must be changed at first
+ *       sign-in). With `accessRequestId`, that request is marked as converted.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, admin]
+ *             properties:
+ *               name: { type: string, example: Botica Santa Rosa }
+ *               industry: { type: string, example: Pharmacy }
+ *               plan: { type: string, enum: [free, starter, pro], default: free }
+ *               admin:
+ *                 type: object
+ *                 required: [name, email]
+ *                 properties:
+ *                   name: { type: string, example: Julia Condori }
+ *                   email: { type: string, format: email, example: julia@boticasantarosa.pe }
+ *               accessRequestId: { type: string, format: uuid }
+ *     responses:
+ *       201:
+ *         description: Tenant created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 tenant: { $ref: '#/components/schemas/PlatformTenantDetail' }
+ *                 temporaryPassword: { type: string }
+ *       400: { description: VALIDATION_ERROR or ACCESS_REQUEST_CONVERTED }
+ *       404: { description: ACCESS_REQUEST_NOT_FOUND }
+ *       409: { description: EMAIL_TAKEN }
+ */
+platformRouter.post('/tenants', platformController.createTenant);
+
+/**
+ * @openapi
  * /admin/tenants/{id}:
  *   parameters:
  *     - { $ref: '#/components/parameters/Id' }
@@ -166,6 +210,118 @@ platformRouter.get('/tenants', platformController.listTenants);
  */
 platformRouter.get('/tenants/:id', platformController.getTenant);
 platformRouter.patch('/tenants/:id', platformController.updateTenant);
+
+/**
+ * @openapi
+ * /admin/tenants/{id}/users:
+ *   parameters:
+ *     - { $ref: '#/components/parameters/Id' }
+ *   post:
+ *     tags: [Platform admin]
+ *     summary: Add a user to a tenant with a temporary password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/TeamUserInput' }
+ *     responses:
+ *       201:
+ *         description: User created
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/TenantUserWithPassword' }
+ *       404: { description: TENANT_NOT_FOUND }
+ *       409: { description: EMAIL_TAKEN }
+ * /admin/tenants/{id}/users/{userId}:
+ *   parameters:
+ *     - { $ref: '#/components/parameters/Id' }
+ *     - { $ref: '#/components/parameters/UserId' }
+ *   patch:
+ *     tags: [Platform admin]
+ *     summary: Rename a tenant user, change their role, or activate / deactivate them
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/TeamUserUpdate' }
+ *     responses:
+ *       200:
+ *         description: Updated user
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/TenantUser' }
+ *       400: { description: VALIDATION_ERROR or LAST_ADMIN }
+ *       404: { description: TENANT_NOT_FOUND or USER_NOT_FOUND }
+ * /admin/tenants/{id}/users/{userId}/reset-password:
+ *   parameters:
+ *     - { $ref: '#/components/parameters/Id' }
+ *     - { $ref: '#/components/parameters/UserId' }
+ *   post:
+ *     tags: [Platform admin]
+ *     summary: Give a tenant user a new temporary password
+ *     responses:
+ *       200:
+ *         description: New temporary password (shown once)
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/TemporaryPassword' }
+ *       404: { description: TENANT_NOT_FOUND or USER_NOT_FOUND }
+ */
+platformRouter.post('/tenants/:id/users', platformController.createTenantUser);
+platformRouter.patch('/tenants/:id/users/:userId', platformController.updateTenantUser);
+platformRouter.post(
+  '/tenants/:id/users/:userId/reset-password',
+  platformController.resetTenantUserPassword,
+);
+
+/**
+ * @openapi
+ * /admin/access-requests:
+ *   get:
+ *     tags: [Platform admin]
+ *     summary: Access requests from the landing page, newest first
+ *     parameters:
+ *       - { in: query, name: status, schema: { type: string, enum: [pending, converted, dismissed] } }
+ *       - { in: query, name: search, schema: { type: string }, description: Business, contact, email or phone }
+ *       - { $ref: '#/components/parameters/Page' }
+ *       - { $ref: '#/components/parameters/PageSize' }
+ *     responses:
+ *       200:
+ *         description: Paginated access requests
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data: { type: array, items: { $ref: '#/components/schemas/AccessRequest' } }
+ *                 meta: { $ref: '#/components/schemas/PaginationMeta' }
+ * /admin/access-requests/{id}:
+ *   parameters:
+ *     - { $ref: '#/components/parameters/Id' }
+ *   patch:
+ *     tags: [Platform admin]
+ *     summary: Dismiss an access request or move it back to pending
+ *     description: Converted requests cannot change (400 ACCESS_REQUEST_CONVERTED).
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status: { type: string, enum: [pending, dismissed] }
+ *     responses:
+ *       200:
+ *         description: Updated request
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/AccessRequest' }
+ *       400: { description: VALIDATION_ERROR or ACCESS_REQUEST_CONVERTED }
+ *       404: { description: ACCESS_REQUEST_NOT_FOUND }
+ */
+platformRouter.get('/access-requests', platformController.listAccessRequests);
+platformRouter.patch('/access-requests/:id', platformController.updateAccessRequest);
 
 // Unknown admin routes end here instead of falling through to the tenant routes.
 platformRouter.use(notFoundHandler);

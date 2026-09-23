@@ -8,6 +8,11 @@ export interface AccessTokenPayload {
   tenantId: string;
   role: UserRole;
   type: 'access';
+  /**
+   * "Password change required": present while the user still has a temporary password. The
+   * `authenticate` middleware then only lets the user reach the password-change routes.
+   */
+  pwc?: true;
 }
 
 export interface RefreshTokenPayload {
@@ -38,12 +43,18 @@ export interface TokenPair {
   refreshToken: string;
 }
 
-export function issueTokens(user: { id: string; tenantId: string; role: UserRole }): TokenPair {
+export function issueTokens(user: {
+  id: string;
+  tenantId: string;
+  role: UserRole;
+  mustChangePassword?: boolean;
+}): TokenPair {
   const accessPayload: AccessTokenPayload = {
     sub: user.id,
     tenantId: user.tenantId,
     role: user.role,
     type: 'access',
+    ...(user.mustChangePassword && { pwc: true as const }),
   };
   const refreshPayload: RefreshTokenPayload = { sub: user.id, type: 'refresh' };
 

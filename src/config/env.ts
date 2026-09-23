@@ -41,6 +41,12 @@ const envSchema = z.object({
 
   SEED_ON_START: booleanString,
 
+  /**
+   * When false (the default) businesses are onboarded by the platform admin: `POST /auth/register`
+   * is rejected and Google sign-in no longer creates new businesses.
+   */
+  SELF_SIGNUP_ENABLED: booleanString,
+
   /** Platform (backoffice) admin created by the seed. Defaults: admin@solvia.app / Password123! */
   PLATFORM_ADMIN_EMAIL: optional(z.email()),
   PLATFORM_ADMIN_PASSWORD: optional(z.string().min(8)),

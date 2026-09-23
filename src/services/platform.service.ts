@@ -13,9 +13,20 @@ import {
 import { AppError } from '../errors/AppError';
 import { addDays, addMonths, startOfMonth, todayInTimezone } from '../lib/dates';
 import { roundMoney, toNumber } from '../lib/money';
+import { runWithTenant } from '../lib/tenantContext';
 import { platformRepository } from '../repositories/platform.repository';
+import { tenantRepository } from '../repositories/tenant.repository';
+import { userRepository } from '../repositories/user.repository';
 import { paginate } from '../validators/common.schemas';
-import type { ListTenantsQuery, UpdateTenantInput } from '../validators/platform.schemas';
+import type {
+  CreateTenantInput,
+  ListTenantsQuery,
+  UpdateTenantInput,
+} from '../validators/platform.schemas';
+import type { CreateTeamUserInput, UpdateTeamUserInput } from '../validators/user.schemas';
+import { accessRequestService } from './accessRequest.service';
+import { toTenantUserDto } from './dto';
+import { emailTaken, newTemporaryPassword, userManagementService } from './userManagement.service';
 
 const SIGNUP_MONTHS = 12;
 const COLLECTION_MONTHS = 6;
@@ -27,6 +38,10 @@ type TenantWithCounts = Tenant & {
 
 function tenantNotFound() {
   return new AppError(404, 'TENANT_NOT_FOUND', 'Tenant not found');
+}
+
+async function assertTenantExists(id: string) {
+  if (!(await platformRepository.tenantExists(id))) throw tenantNotFound();
 }
 
 /** Balances, latest receivable and payment activity of the given tenants. */
@@ -82,20 +97,31 @@ export const platformService = {
     const collectionStart = addMonths(startOfMonth(today), -(COLLECTION_MONTHS - 1));
     const recentFrom = addDays(today, -(RECENT_COLLECTION_DAYS - 1));
 
-    const [byStatus, byPlan, users, customers, receivables, balances, signups, payments, tenants] =
-      await Promise.all([
-        platformRepository.tenantCountsByStatus(),
-        platformRepository.tenantCountsByPlan(),
-        platformRepository.countUsers(),
-        platformRepository.countCustomers(),
-        platformRepository.countReceivables(),
-        platformRepository.openBalances(),
-        // One extra day so sign-ups late on the last day (UTC) before the window are bucketed
-        // by their local date below.
-        platformRepository.tenantSignupsSince(addDays(signupStart, -1)),
-        platformRepository.paymentsBetween(collectionStart, today),
-        platformRepository.tenantSummaries(),
-      ]);
+    const [
+      byStatus,
+      byPlan,
+      users,
+      customers,
+      receivables,
+      balances,
+      signups,
+      payments,
+      tenants,
+      pendingAccessRequests,
+    ] = await Promise.all([
+      platformRepository.tenantCountsByStatus(),
+      platformRepository.tenantCountsByPlan(),
+      platformRepository.countUsers(),
+      platformRepository.countCustomers(),
+      platformRepository.countReceivables(),
+      platformRepository.openBalances(),
+      // One extra day so sign-ups late on the last day (UTC) before the window are bucketed
+      // by their local date below.
+      platformRepository.tenantSignupsSince(addDays(signupStart, -1)),
+      platformRepository.paymentsBetween(collectionStart, today),
+      platformRepository.tenantSummaries(),
+      accessRequestService.countPending(),
+    ]);
 
     const countByStatus = (status: 'active' | 'suspended') =>
       byStatus.find((row) => row.status === status)?._count._all ?? 0;
@@ -139,6 +165,7 @@ export const platformService = {
         outstanding,
         collectedLast30Days,
         newTenantsThisMonth: signupSeries.at(-1)?.count ?? 0,
+        pendingAccessRequests,
       },
       tenantsByPlan: planBreakdown(
         byPlan.map((row) => ({ plan: row.plan, count: row._count._all })),
@@ -193,20 +220,54 @@ export const platformService = {
     return {
       ...toTenantRow(tenant, stats),
       overdue: stats.balances.get(id)?.overdue ?? 0,
-      users: tenant.users.map((user) => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        createdAt: user.createdAt.toISOString(),
-        hasGoogle: user.googleId !== null,
-      })),
+      users: tenant.users.map(toTenantUserDto),
     };
   },
 
   async updateTenant(id: string, input: UpdateTenantInput) {
-    if (!(await platformRepository.tenantExists(id))) throw tenantNotFound();
+    await assertTenantExists(id);
     await platformRepository.updateTenant(id, input);
     return this.getTenant(id);
+  },
+
+  /**
+   * Managed onboarding: creates a business with the same defaults as self-service sign-up
+   * (message templates, reminder rules) and its first admin with a temporary password. When it
+   * comes from an access request, that request is marked as converted.
+   */
+  async createTenant(input: CreateTenantInput) {
+    if (await userRepository.emailExists(input.admin.email)) throw emailTaken();
+    if (input.accessRequestId) {
+      await accessRequestService.assertConvertible(input.accessRequestId);
+    }
+
+    const { temporaryPassword, passwordHash } = await newTemporaryPassword();
+    const { tenant } = await tenantRepository.createWithAdmin({
+      tenant: { name: input.name, industry: input.industry ?? null, plan: input.plan },
+      admin: {
+        name: input.admin.name,
+        email: input.admin.email,
+        passwordHash,
+        mustChangePassword: true,
+      },
+      accessRequestId: input.accessRequestId,
+    });
+    return { tenant: await this.getTenant(tenant.id), temporaryPassword };
+  },
+
+  async createTenantUser(tenantId: string, input: CreateTeamUserInput) {
+    await assertTenantExists(tenantId);
+    return runWithTenant(tenantId, () => userManagementService.create(input));
+  },
+
+  /** Platform admins are not tenant users, so only the last-admin rule applies. */
+  async updateTenantUser(tenantId: string, userId: string, input: UpdateTeamUserInput) {
+    await assertTenantExists(tenantId);
+    return runWithTenant(tenantId, () => userManagementService.update(null, userId, input));
+  },
+
+  async resetTenantUserPassword(tenantId: string, userId: string) {
+    await assertTenantExists(tenantId);
+    return runWithTenant(tenantId, () => userManagementService.resetPassword(null, userId));
   },
 };

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authController } from '../controllers/auth.controller';
-import { authenticate, requireRole } from '../middleware/authenticate';
+import { authenticateAllowingPasswordChange } from '../middleware/authenticate';
 import { tenantScope } from '../middleware/tenantScope';
 
 export const authRouter = Router();
@@ -11,6 +11,7 @@ export const authRouter = Router();
  *   post:
  *     tags: [Auth]
  *     summary: Register a business (tenant) and its first admin user
+ *     description: Only available when self sign-up is enabled (`SELF_SIGNUP_ENABLED`); otherwise 403 SIGNUP_DISABLED.
  *     security: []
  *     requestBody:
  *       required: true
@@ -32,6 +33,7 @@ export const authRouter = Router();
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/AuthSession' }
+ *       403: { description: SIGNUP_DISABLED }
  *       409: { $ref: '#/components/responses/Conflict' }
  */
 authRouter.post('/register', authController.register);
@@ -60,6 +62,7 @@ authRouter.post('/register', authController.register);
  *           application/json:
  *             schema: { $ref: '#/components/schemas/AuthSession' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { description: USER_DISABLED or TENANT_SUSPENDED }
  */
 authRouter.post('/login', authController.login);
 
@@ -72,7 +75,8 @@ authRouter.post('/login', authController.login);
  *     description: |
  *       Signs in the user linked to the Google account (or with the same verified email).
  *       For a new email it returns `needsRegistration: true`; call again with `businessName`
- *       to create the business with this user as admin.
+ *       to create the business with this user as admin. When self sign-up is disabled, a new
+ *       email is rejected with 403 GOOGLE_ACCOUNT_NOT_FOUND instead.
  *     security: []
  *     requestBody:
  *       required: true
@@ -89,14 +93,23 @@ authRouter.post('/login', authController.login);
  *       200: { description: Session, or `{ needsRegistration, profile }` for new emails }
  *       201: { description: Business registered and signed in }
  *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { description: GOOGLE_ACCOUNT_NOT_FOUND, USER_DISABLED or TENANT_SUSPENDED }
  *       503: { description: Google sign-in is not configured (GOOGLE_CLIENT_ID) }
  * /auth/config:
  *   get:
  *     tags: [Auth]
- *     summary: Public auth configuration (Google client ID when enabled)
+ *     summary: Public auth configuration (Google client ID when enabled, self sign-up flag)
  *     security: []
  *     responses:
- *       200: { description: Configuration }
+ *       200:
+ *         description: Configuration
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 googleClientId: { type: string, nullable: true }
+ *                 signupEnabled: { type: boolean }
  */
 authRouter.post('/google', authController.google);
 authRouter.get('/config', authController.config);
@@ -124,6 +137,7 @@ authRouter.get('/config', authController.config);
  *           application/json:
  *             schema: { $ref: '#/components/schemas/TokenPair' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       403: { description: USER_DISABLED or TENANT_SUSPENDED }
  */
 authRouter.post('/refresh', authController.refresh);
 
@@ -133,40 +147,41 @@ authRouter.post('/refresh', authController.refresh);
  *   get:
  *     tags: [Auth]
  *     summary: Current user and tenant
+ *     description: Also available while the user must change a temporary password.
  *     responses:
- *       200: { description: Current user profile }
+ *       200: { description: Current user profile (includes `mustChangePassword`) }
  *       401: { $ref: '#/components/responses/Unauthorized' }
- */
-authRouter.get('/me', authenticate, tenantScope, authController.me);
-
-/**
- * @openapi
- * /users:
- *   get:
- *     tags: [Users]
- *     summary: List users of the tenant (admin only)
- *     responses:
- *       200: { description: Users }
- *       403: { $ref: '#/components/responses/Forbidden' }
+ * /auth/change-password:
  *   post:
- *     tags: [Users]
- *     summary: Create a user in the tenant (admin only)
+ *     tags: [Auth]
+ *     summary: Change the caller's password (required after receiving a temporary one)
+ *     description: |
+ *       Clears `mustChangePassword` and returns a fresh session. `currentPassword` may be omitted
+ *       only by Google-only accounts that have no password yet. While a user must change their
+ *       password, every other tenant route answers 403 PASSWORD_CHANGE_REQUIRED.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name, email, password]
+ *             required: [newPassword]
  *             properties:
- *               name: { type: string }
- *               email: { type: string, format: email }
- *               password: { type: string, minLength: 8 }
- *               role: { type: string, enum: [admin, collector], default: collector }
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string, minLength: 8 }
  *     responses:
- *       201: { description: User created }
- *       409: { $ref: '#/components/responses/Conflict' }
+ *       200:
+ *         description: New session
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/AuthSession' }
+ *       400: { description: VALIDATION_ERROR or PASSWORD_REUSED }
+ *       401: { description: INVALID_CREDENTIALS (wrong current password) or missing token }
  */
-export const usersRouter = Router();
-usersRouter.get('/', requireRole('admin'), authController.listUsers);
-usersRouter.post('/', requireRole('admin'), authController.createUser);
+authRouter.get('/me', authenticateAllowingPasswordChange, tenantScope, authController.me);
+authRouter.post(
+  '/change-password',
+  authenticateAllowingPasswordChange,
+  tenantScope,
+  authController.changePassword,
+);

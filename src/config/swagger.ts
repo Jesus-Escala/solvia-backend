@@ -28,6 +28,12 @@ export const openApiSpec = swaggerJsdoc({
       },
       parameters: {
         Id: { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } },
+        UserId: {
+          in: 'path',
+          name: 'userId',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+        },
         Page: { in: 'query', name: 'page', schema: { type: 'integer', minimum: 1, default: 1 } },
         PageSize: {
           in: 'query',
@@ -84,6 +90,10 @@ export const openApiSpec = swaggerJsdoc({
                     email: { type: 'string' },
                     role: { type: 'string', enum: ['admin', 'collector'] },
                     tenantId: { type: 'string' },
+                    mustChangePassword: {
+                      type: 'boolean',
+                      description: 'True while the user has a temporary password',
+                    },
                   },
                 },
               },
@@ -128,6 +138,69 @@ export const openApiSpec = swaggerJsdoc({
             },
           },
         },
+        TenantUser: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            name: { type: 'string' },
+            email: { type: 'string', format: 'email' },
+            role: { type: 'string', enum: ['admin', 'collector'] },
+            active: { type: 'boolean' },
+            mustChangePassword: { type: 'boolean' },
+            hasGoogle: { type: 'boolean' },
+            lastLoginAt: { type: 'string', format: 'date-time', nullable: true },
+            createdAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        TeamUserInput: {
+          type: 'object',
+          required: ['name', 'email', 'role'],
+          properties: {
+            name: { type: 'string', example: 'Carla Rios' },
+            email: { type: 'string', format: 'email', example: 'carla@bodegasanmartin.pe' },
+            role: { type: 'string', enum: ['admin', 'collector'] },
+          },
+        },
+        TeamUserUpdate: {
+          type: 'object',
+          minProperties: 1,
+          properties: {
+            name: { type: 'string' },
+            role: { type: 'string', enum: ['admin', 'collector'] },
+            active: { type: 'boolean' },
+          },
+        },
+        TemporaryPassword: {
+          type: 'object',
+          properties: {
+            temporaryPassword: {
+              type: 'string',
+              description: 'Shown only once; the user must change it at first sign-in',
+            },
+          },
+        },
+        TenantUserWithPassword: {
+          type: 'object',
+          properties: {
+            user: { $ref: '#/components/schemas/TenantUser' },
+            temporaryPassword: { type: 'string' },
+          },
+        },
+        AccessRequest: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            businessName: { type: 'string' },
+            contactName: { type: 'string' },
+            email: { type: 'string', format: 'email' },
+            phone: { type: 'string' },
+            industry: { type: 'string', nullable: true },
+            message: { type: 'string', nullable: true },
+            status: { type: 'string', enum: ['pending', 'converted', 'dismissed'] },
+            tenantId: { type: 'string', format: 'uuid', nullable: true },
+            createdAt: { type: 'string', format: 'date-time' },
+          },
+        },
         PlatformTenantDetail: {
           allOf: [
             { $ref: '#/components/schemas/PlatformTenantRow' },
@@ -135,20 +208,7 @@ export const openApiSpec = swaggerJsdoc({
               type: 'object',
               properties: {
                 overdue: { type: 'number' },
-                users: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      id: { type: 'string', format: 'uuid' },
-                      name: { type: 'string' },
-                      email: { type: 'string' },
-                      role: { type: 'string', enum: ['admin', 'collector'] },
-                      createdAt: { type: 'string', format: 'date-time' },
-                      hasGoogle: { type: 'boolean' },
-                    },
-                  },
-                },
+                users: { type: 'array', items: { $ref: '#/components/schemas/TenantUser' } },
               },
             },
           ],
@@ -168,6 +228,7 @@ export const openApiSpec = swaggerJsdoc({
                 outstanding: { type: 'number' },
                 collectedLast30Days: { type: 'number' },
                 newTenantsThisMonth: { type: 'integer' },
+                pendingAccessRequests: { type: 'integer' },
               },
             },
             tenantsByPlan: {

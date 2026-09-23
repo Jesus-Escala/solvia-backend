@@ -11,13 +11,40 @@ function bearerToken(req: Request): string {
   return header.slice('Bearer '.length).trim();
 }
 
+function attachAuth(req: Request) {
+  const payload = verifyAccessToken(bearerToken(req));
+  req.auth = { userId: payload.sub, tenantId: payload.tenantId, role: payload.role };
+  return payload;
+}
+
 /**
  * Validates the `Authorization: Bearer <token>` header and attaches `req.auth`.
  * Only tenant access tokens are accepted; platform admin tokens are rejected.
+ * Users with a temporary password (`pwc` claim) are rejected until they change it; the few
+ * routes they may use are protected by `authenticateAllowingPasswordChange` instead.
  */
 export function authenticate(req: Request, _res: Response, next: NextFunction): void {
-  const payload = verifyAccessToken(bearerToken(req));
-  req.auth = { userId: payload.sub, tenantId: payload.tenantId, role: payload.role };
+  const payload = attachAuth(req);
+  if (payload.pwc) {
+    throw new AppError(
+      403,
+      'PASSWORD_CHANGE_REQUIRED',
+      'You must change your temporary password before continuing',
+    );
+  }
+  next();
+}
+
+/**
+ * Same as `authenticate` but also admits users who must change their temporary password.
+ * Allow-list: only `GET /auth/me` and `POST /auth/change-password` use it.
+ */
+export function authenticateAllowingPasswordChange(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void {
+  attachAuth(req);
   next();
 }
 
