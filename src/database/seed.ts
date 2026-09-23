@@ -44,7 +44,7 @@ interface TenantSeed {
 const TENANTS: TenantSeed[] = [
   {
     name: 'Bodega San Martin',
-    industry: 'Retail',
+    industry: 'Bodega o minimarket',
     plan: 'starter',
     domain: 'bodegasanmartin.pe',
     adminName: 'Rosa Huaman',
@@ -64,7 +64,7 @@ const TENANTS: TenantSeed[] = [
   },
   {
     name: 'Ferreteria El Constructor',
-    industry: 'Hardware',
+    industry: 'Ferretería',
     plan: 'pro',
     domain: 'elconstructor.pe',
     adminName: 'Miguel Vargas',
@@ -105,7 +105,7 @@ const TENANTS: TenantSeed[] = [
   },
   {
     name: 'Distribuidora Andina',
-    industry: 'Wholesale',
+    industry: 'Distribuidora o mayorista',
     plan: 'free',
     domain: 'distribuidoraandina.pe',
     adminName: 'Elena Ramos',
@@ -143,10 +143,10 @@ const ACCESS_REQUESTS: AccessRequestSeed[] = [
     contactName: 'Julia Condori',
     email: 'julia.condori@boticasantarosa.pe',
     phone: '+51 954 123 456',
-    industry: 'Pharmacy',
+    industry: 'Farmacia o botica',
     message:
-      'We have a pharmacy in Cayma, Arequipa, and sell on credit to about 60 regular customers. ' +
-      'We track everything in a notebook and would like to send WhatsApp reminders.',
+      'Plan de interés: Starter\nTenemos una botica en Cayma, Arequipa, y fiamos a unos 60 clientes ' +
+      'frecuentes. Llevamos todo en un cuaderno y queremos enviar recordatorios por WhatsApp.',
     status: 'pending',
     createdIn: -1,
   },
@@ -155,10 +155,10 @@ const ACCESS_REQUESTS: AccessRequestSeed[] = [
     contactName: 'Victor Alvarado',
     email: 'valvarado@ferreterianorte.pe',
     phone: '+51 944 876 210',
-    industry: 'Hardware',
+    industry: 'Ferretería',
     message:
-      'Hardware store in Trujillo. Many builders pay at 30 days and we lose track of who is ' +
-      'late. Is there a plan for two collectors?',
+      'Plan de interés: Pro\nFerretería en Trujillo. Muchos maestros de obra pagan a 30 días y ' +
+      'perdemos la cuenta de quién está atrasado. ¿Hay un plan para dos cobradores?',
     status: 'pending',
     createdIn: -3,
   },
@@ -167,8 +167,8 @@ const ACCESS_REQUESTS: AccessRequestSeed[] = [
     contactName: 'Rocio Paredes',
     email: 'rocio@lasazondemama.pe',
     phone: '+51 987 222 314',
-    industry: 'Restaurant',
-    message: 'Restaurant in Surquillo, Lima. We give monthly lunch credit to nearby offices.',
+    industry: 'Restaurante o cafetería',
+    message: 'Restaurante en Surquillo, Lima. Damos crédito mensual de menú a oficinas cercanas.',
     status: 'pending',
     createdIn: -6,
   },
@@ -177,7 +177,7 @@ const ACCESS_REQUESTS: AccessRequestSeed[] = [
     contactName: 'Hugo Salas',
     email: 'hugo.salas@gmail.com',
     phone: '+51 912 345 000',
-    industry: 'Retail',
+    industry: 'Bodega o minimarket',
     status: 'dismissed',
     createdIn: -20,
   },
