@@ -1,0 +1,38 @@
+import { Router } from 'express';
+import { authenticate } from '../middleware/authenticate';
+import { tenantScope } from '../middleware/tenantScope';
+import { authRouter, usersRouter } from './auth.routes';
+import { customerRouter } from './customer.routes';
+import { dashboardRouter } from './dashboard.routes';
+import { receivableRouter } from './receivable.routes';
+import { settingsRouter } from './settings.routes';
+
+export const apiRouter = Router();
+
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     tags: [System]
+ *     summary: Health check
+ *     security: []
+ *     responses:
+ *       200: { description: Service is up }
+ */
+apiRouter.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'solvia-backend', timestamp: new Date().toISOString() });
+});
+
+// Public routes
+apiRouter.use('/auth', authRouter);
+
+// Everything below requires a valid access token and runs inside the caller's tenant scope.
+const protectedRouter = Router();
+protectedRouter.use(authenticate, tenantScope);
+protectedRouter.use('/users', usersRouter);
+protectedRouter.use('/customers', customerRouter);
+protectedRouter.use('/receivables', receivableRouter);
+protectedRouter.use('/settings', settingsRouter);
+protectedRouter.use('/', dashboardRouter);
+
+apiRouter.use(protectedRouter);
