@@ -1,0 +1,5 @@
+dist
+node_modules
+coverage
+storage
+prisma/migrations
