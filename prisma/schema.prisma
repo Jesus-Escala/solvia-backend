@@ -134,6 +134,8 @@ model Customer {
 
   @@index([tenantId])
   @@index([tenantId, name])
+  /// New customers per period (dashboard analytics).
+  @@index([tenantId, createdAt])
   @@map("customers")
 }
 
@@ -157,6 +159,8 @@ model Receivable {
 
   @@index([tenantId, status])
   @@index([tenantId, dueDate])
+  /// Receivables issued per period (dashboard analytics).
+  @@index([tenantId, issueDate])
   @@index([customerId])
   @@map("receivables")
 }
@@ -172,6 +176,8 @@ model Payment {
   receivable Receivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
 
   @@index([receivableId])
+  /// Payments per period (dashboard analytics, platform overview).
+  @@index([date])
   @@map("payments")
 }
 
