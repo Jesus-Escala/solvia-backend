@@ -1,0 +1,8 @@
+# Always LF in the working tree (Prettier checks line endings, also on Windows).
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.ico binary
+*.jpg binary
+*.woff2 binary
