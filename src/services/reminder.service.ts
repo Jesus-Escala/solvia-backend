@@ -149,7 +149,7 @@ export const reminderService = {
       paidAmount: toNumber(receivable.paidAmount),
     });
     if (outstanding <= 0) {
-      throw AppError.unprocessable('This receivable is already paid');
+      throw new AppError(422, 'RECEIVABLE_ALREADY_PAID', 'This receivable is already paid');
     }
 
     const today = todayInTimezone(env.APP_TIMEZONE);

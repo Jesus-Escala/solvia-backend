@@ -24,7 +24,10 @@ export const moneySchema = z.coerce
     message: 'Amount must have at most 2 decimals',
   });
 
+export const sortDirSchema = z.enum(['asc', 'desc']).default('asc');
+
 export type Pagination = z.infer<typeof paginationSchema>;
+export type SortDir = z.infer<typeof sortDirSchema>;
 
 export interface Paginated<T> {
   data: T[];

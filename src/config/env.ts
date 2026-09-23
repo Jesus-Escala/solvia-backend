@@ -32,6 +32,9 @@ const envSchema = z.object({
   WHATSAPP_PROVIDER: z.enum(['mock', 'meta', 'dialog360', 'twilio']).default('mock'),
   PAYMENT_PROVIDER: z.enum(['mock', 'culqi', 'mercadopago']).default('mock'),
 
+  /** OAuth client ID for "Sign in with Google" (Google Cloud Console). Optional. */
+  GOOGLE_CLIENT_ID: z.string().trim().min(1).optional(),
+
   SEED_ON_START: booleanString,
 });
 

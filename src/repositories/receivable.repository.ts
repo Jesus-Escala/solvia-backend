@@ -42,6 +42,17 @@ function buildWhere(query: Partial<ListReceivablesQuery>): Prisma.ReceivableWher
   return where;
 }
 
+function buildOrderBy(
+  query: Pick<ListReceivablesQuery, 'sortBy' | 'sortDir'>,
+): Prisma.ReceivableOrderByWithRelationInput[] {
+  const primary: Prisma.ReceivableOrderByWithRelationInput =
+    query.sortBy === 'customer'
+      ? { customer: { name: query.sortDir } }
+      : { [query.sortBy]: query.sortDir };
+  // Stable secondary order so pagination never repeats or skips rows.
+  return [primary, { createdAt: 'asc' }, { id: 'asc' }];
+}
+
 export const receivableRepository = {
   findMany(query: ListReceivablesQuery) {
     const where = buildWhere(query);
@@ -49,7 +60,7 @@ export const receivableRepository = {
       prisma.receivable.findMany({
         where,
         include: { customer: { select: customerSummarySelect } },
-        orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
+        orderBy: buildOrderBy(query),
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

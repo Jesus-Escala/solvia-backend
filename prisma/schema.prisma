@@ -84,7 +84,10 @@ model User {
   tenantId     String
   name         String
   email        String   @unique
-  passwordHash String
+  /// Null for accounts that only sign in with Google.
+  passwordHash String?
+  /// Google account subject ("sub"), set when the user signs in with Google.
+  googleId     String?  @unique
   role         UserRole @default(collector)
   createdAt    DateTime @default(now())
 

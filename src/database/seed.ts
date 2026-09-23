@@ -128,6 +128,18 @@ function plansFor(profile: Profile, base: number): ReceivablePlan[] {
     case 'punctual':
       return [
         {
+          description: 'Opening order',
+          amount: amount(0.9),
+          dueIn: -150,
+          payments: [{ ratio: 1, paidIn: -152, method: 'bank_transfer' }],
+        },
+        {
+          description: 'Monthly supply - June',
+          amount: amount(1.05),
+          dueIn: -95,
+          payments: [{ ratio: 1, paidIn: -96, method: 'yape' }],
+        },
+        {
           description: 'Monthly supply - July',
           amount: amount(1),
           dueIn: -60,
@@ -153,6 +165,12 @@ function plansFor(profile: Profile, base: number): ReceivablePlan[] {
     case 'late':
       return [
         {
+          description: 'Invoice F001-0055',
+          amount: amount(1.2),
+          dueIn: -160,
+          payments: [{ ratio: 1, paidIn: -141, method: 'bank_transfer' }],
+        },
+        {
           description: 'Invoice F001-0102',
           amount: amount(1.4),
           dueIn: -75,
@@ -177,6 +195,15 @@ function plansFor(profile: Profile, base: number): ReceivablePlan[] {
       ];
     case 'defaulter':
       return [
+        {
+          description: 'Credit sale - April',
+          amount: amount(0.9),
+          dueIn: -150,
+          payments: [
+            { ratio: 0.5, paidIn: -135, method: 'cash' },
+            { ratio: 0.5, paidIn: -112, method: 'cash' },
+          ],
+        },
         {
           description: 'Credit sale - June',
           amount: amount(0.8),
@@ -204,6 +231,12 @@ function plansFor(profile: Profile, base: number): ReceivablePlan[] {
       ];
     case 'mixed':
       return [
+        {
+          description: 'Order #0950',
+          amount: amount(0.85),
+          dueIn: -125,
+          payments: [{ ratio: 1, paidIn: -126, method: 'plin' }],
+        },
         {
           description: 'Order #1001',
           amount: amount(1),

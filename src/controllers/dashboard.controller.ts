@@ -13,6 +13,7 @@ import {
 
 const notificationsQuerySchema = paginationSchema.extend({
   receivableId: z.uuid().optional(),
+  customerId: z.uuid().optional(),
   status: z.enum(['sent', 'failed']).optional(),
 });
 
@@ -42,8 +43,10 @@ export const dashboardController = {
   },
 
   async listNotifications(req: Request, res: Response) {
-    const { receivableId, status, ...pagination } = notificationsQuerySchema.parse(req.query);
-    res.json(await notificationService.list({ receivableId, status }, pagination));
+    const { receivableId, customerId, status, ...pagination } = notificationsQuerySchema.parse(
+      req.query,
+    );
+    res.json(await notificationService.list({ receivableId, customerId, status }, pagination));
   },
 
   async runReminders(_req: Request, res: Response) {

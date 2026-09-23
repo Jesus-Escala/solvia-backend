@@ -3,6 +3,7 @@ import { getAuth } from '../middleware/tenantScope';
 import { authService } from '../services/auth.service';
 import {
   createUserSchema,
+  googleSignInSchema,
   loginSchema,
   refreshSchema,
   registerSchema,
@@ -17,6 +18,16 @@ export const authController = {
   async login(req: Request, res: Response) {
     const input = loginSchema.parse(req.body);
     res.json(await authService.login(input));
+  },
+
+  async google(req: Request, res: Response) {
+    const input = googleSignInSchema.parse(req.body);
+    const result = await authService.googleSignIn(input);
+    res.status('tenant' in result ? 201 : 200).json(result);
+  },
+
+  config(_req: Request, res: Response) {
+    res.json(authService.config());
   },
 
   async refresh(req: Request, res: Response) {

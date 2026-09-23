@@ -80,6 +80,7 @@ dashboardRouter.get('/reports/monthly/:period', dashboardController.getReport);
  *     summary: Message send log
  *     parameters:
  *       - { in: query, name: receivableId, schema: { type: string, format: uuid } }
+ *       - { in: query, name: customerId, schema: { type: string, format: uuid } }
  *       - { in: query, name: status, schema: { type: string, enum: [sent, failed] } }
  *       - { $ref: '#/components/parameters/Page' }
  *       - { $ref: '#/components/parameters/PageSize' }

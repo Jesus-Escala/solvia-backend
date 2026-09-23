@@ -54,10 +54,14 @@ export const receivableService = {
     const dueDate = input.dueDate ?? existing.dueDate;
 
     if (totalAmount < paidAmount) {
-      throw AppError.unprocessable('Total amount cannot be lower than the amount already paid');
+      throw new AppError(
+        422,
+        'TOTAL_BELOW_PAID',
+        'Total amount cannot be lower than the amount already paid',
+      );
     }
     if (dueDate.getTime() < issueDate.getTime()) {
-      throw AppError.badRequest('Due date cannot be earlier than the issue date');
+      throw new AppError(400, 'DUE_BEFORE_ISSUE', 'Due date cannot be earlier than the issue date');
     }
 
     const status = deriveReceivableStatus({ totalAmount, paidAmount, dueDate }, today());
@@ -76,7 +80,7 @@ export const receivableService = {
       paidAmount: toNumber(receivable.paidAmount),
     });
     if (outstanding <= 0) {
-      throw AppError.unprocessable('This receivable is already paid');
+      throw new AppError(422, 'RECEIVABLE_ALREADY_PAID', 'This receivable is already paid');
     }
     const link = await paymentProvider.createPaymentLink({
       reference: receivable.id,

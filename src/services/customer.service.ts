@@ -43,10 +43,15 @@ function balanceSummary(receivables: ReceivableBalanceRow[]) {
 
 export const customerService = {
   async list(query: ListCustomersQuery) {
-    // Risk is computed on the fly, so filtering by risk requires evaluating every match first.
+    // Risk and balances are computed on the fly, so filtering or sorting by them needs every match.
+    const inMemory =
+      Boolean(query.risk) || query.sortBy === 'outstanding' || query.sortBy === 'risk';
     const [customers, total] = await customerRepository.findMany({
       search: query.search,
-      pagination: query.risk ? undefined : query,
+      pagination: inMemory ? undefined : query,
+      orderBy: inMemory
+        ? undefined
+        : { field: query.sortBy as 'name' | 'createdAt', dir: query.sortDir },
     });
 
     const rows = customers.map(({ receivables, ...customer }) => ({
@@ -55,10 +60,26 @@ export const customerService = {
       summary: balanceSummary(receivables),
     }));
 
-    if (!query.risk) {
+    if (!inMemory) {
       return paginate(rows, total, query);
     }
-    const filtered = rows.filter((row) => row.risk.level === query.risk);
+
+    const direction = query.sortDir === 'desc' ? -1 : 1;
+    const sortValue = (row: (typeof rows)[number]): number | string =>
+      query.sortBy === 'outstanding'
+        ? row.summary.totalOutstanding
+        : query.sortBy === 'risk'
+          ? row.risk.points
+          : query.sortBy === 'createdAt'
+            ? row.createdAt
+            : row.name.toLowerCase();
+    const filtered = rows
+      .filter((row) => !query.risk || row.risk.level === query.risk)
+      .sort((a, b) => {
+        const left = sortValue(a);
+        const right = sortValue(b);
+        return (left < right ? -1 : left > right ? 1 : 0) * direction;
+      });
     const start = (query.page - 1) * query.pageSize;
     return paginate(filtered.slice(start, start + query.pageSize), filtered.length, query);
   },

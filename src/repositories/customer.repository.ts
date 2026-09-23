@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { requireTenantId } from '../lib/tenantContext';
-import type { Pagination } from '../validators/common.schemas';
+import type { Pagination, SortDir } from '../validators/common.schemas';
 import type { DbClient } from './types';
 
 export interface CustomerWriteData {
@@ -33,13 +33,17 @@ function searchFilter(search?: string): Prisma.CustomerWhereInput {
 }
 
 export const customerRepository = {
-  findMany(options: { search?: string; pagination?: Pagination }) {
+  findMany(options: {
+    search?: string;
+    pagination?: Pagination;
+    orderBy?: { field: 'name' | 'createdAt'; dir: SortDir };
+  }) {
     const where = searchFilter(options.search);
-    const { pagination } = options;
+    const { pagination, orderBy = { field: 'name', dir: 'asc' } } = options;
     return prisma.$transaction([
       prisma.customer.findMany({
         where,
-        orderBy: { name: 'asc' },
+        orderBy: [{ [orderBy.field]: orderBy.dir }, { id: 'asc' }],
         include: { receivables: { select: receivableHistorySelect } },
         ...(pagination && {
           skip: (pagination.page - 1) * pagination.pageSize,

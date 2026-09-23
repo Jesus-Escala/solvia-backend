@@ -17,6 +17,16 @@ export const userRepository = {
     return basePrisma.user.findUnique({ where: { email } });
   },
 
+  /** Unscoped lookup used by Google sign-in. */
+  findByGoogleIdForAuth(googleId: string) {
+    return basePrisma.user.findUnique({ where: { googleId } });
+  },
+
+  /** Links a Google account to an existing user (first Google sign-in with the same email). */
+  linkGoogleAccount(userId: string, googleId: string) {
+    return basePrisma.user.update({ where: { id: userId }, data: { googleId } });
+  },
+
   /** Unscoped lookup used by token refresh. */
   findByIdForAuth(id: string) {
     return basePrisma.user.findUnique({ where: { id } });

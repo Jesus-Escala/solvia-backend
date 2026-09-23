@@ -47,11 +47,57 @@ function renderToBuffer(build: (doc: PdfDoc) => void): Promise<Buffer> {
   });
 }
 
+/**
+ * Solvia mark geometry (64x64): Soli the owl + gold S/ coin. Same values as the web logo
+ * (frontend/src/components/brand/owlGeometry.ts).
+ */
+const LOGO = {
+  head: 'M13 17C13.5 14.5 16 13.8 18 15L24 19.6C26.5 18.9 29.2 18.5 32 18.5C34.8 18.5 37.5 18.9 40 19.6L46 15C48 13.8 50.5 14.5 51 17L51.5 29.5C52.5 32 53 34.7 53 37.5C53 47.7 43.6 54.5 32 54.5C20.4 54.5 11 47.7 11 37.5C11 34.7 11.5 32 12.5 29.5Z',
+  brows: ['M17 27.4Q23.5 23.6 29.6 26.4', 'M34.4 26.4Q40.5 23.6 47 27.4'],
+  beak: 'M32 41.6C30.4 41.6 29 42.6 29 43.9C29 45.6 30.8 47.3 32 48C33.2 47.3 35 45.6 35 43.9C35 42.6 33.6 41.6 32 41.6Z',
+  coinS:
+    'M50.4 45.6C49.7 44.8 48.8 44.4 47.7 44.4C46.1 44.4 45.1 45.2 45.1 46.4C45.1 47.7 46.3 48 47.8 48.3C49.4 48.6 50.5 49 50.5 50.3C50.5 51.5 49.4 52.3 47.8 52.3C46.6 52.3 45.7 51.9 45.1 51.1',
+  coinSlash: 'M54.4 43.8L52 54',
+};
+
+/** Draws the Solvia logo mark at (x, y) with the given size. */
+function drawLogoMark(doc: PdfDoc, x: number, y: number, size: number) {
+  doc.save();
+  doc.translate(x, y).scale(size / 64);
+  const background = doc.linearGradient(4, 2, 60, 62);
+  background.stop(0, '#34d399').stop(0.5, '#0d9488').stop(1, '#0c3a47');
+  doc.roundedRect(0, 0, 64, 64, 18).fill(background);
+  doc.path(LOGO.head).fill('#f0fdfa');
+  for (const brow of LOGO.brows) {
+    doc.path(brow).lineWidth(2.3).lineCap('round').stroke('#0d9488');
+  }
+  doc.fillOpacity(0.5);
+  doc.ellipse(15.8, 45, 3.3, 2).fill('#fb7185');
+  doc.ellipse(48.2, 45, 3.3, 2).fill('#fb7185');
+  doc.fillOpacity(1);
+  for (const cx of [23.5, 40.5]) {
+    doc.circle(cx, 38, 9.2).fill('#a7f3d0');
+    doc.circle(cx, 38, 6.4).fill('#0b2530');
+    doc.circle(cx + 2.2, 35.7, 2.3).fill('#ffffff');
+    doc.circle(cx - 2.1, 40.3, 1).fill('#ffffff');
+  }
+  doc.path(LOGO.beak).fill('#f59e0b');
+  const gold = doc.linearGradient(40, 40, 58, 58);
+  gold.stop(0, '#fde68a').stop(1, '#f59e0b');
+  doc.circle(49, 49, 9.5).lineWidth(2.5).fillAndStroke(gold, '#0c3a47');
+  doc.path(LOGO.coinS).lineWidth(1.8).lineCap('round').lineJoin('round').stroke('#92400e');
+  doc.path(LOGO.coinSlash).lineWidth(1.8).lineCap('round').stroke('#92400e');
+  doc.restore();
+}
+
 function drawHeader(doc: PdfDoc, businessName: string, generatedOn: Date) {
   const width = doc.page.width;
   doc.rect(0, 0, width, 90).fill(BRAND_COLOR);
-  doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(26).text('Solvia', PAGE_MARGIN, 28);
-  doc.font('Helvetica').fontSize(10).text('Credit & collections', PAGE_MARGIN, 58);
+  drawLogoMark(doc, PAGE_MARGIN, 23, 44);
+  const textX = PAGE_MARGIN + 56;
+  doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(24).text('Solvia', textX, 26);
+  doc.font('Helvetica').fontSize(10).fillColor('#CCFBF1').text('Credit & collections', textX, 54);
+  doc.fillColor('#FFFFFF');
   doc
     .font('Helvetica-Bold')
     .fontSize(14)
@@ -144,6 +190,10 @@ function drawFooters(doc: PdfDoc) {
   const range = doc.bufferedPageRange();
   for (let index = range.start; index < range.start + range.count; index += 1) {
     doc.switchToPage(index);
+    // The footer sits inside the bottom margin; lift the margin while writing it, otherwise
+    // pdfkit treats the text as overflow and appends an empty page.
+    const bottomMargin = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
     doc
       .font('Helvetica')
       .fontSize(8)
@@ -154,6 +204,7 @@ function drawFooters(doc: PdfDoc) {
         doc.page.height - PAGE_MARGIN + 10,
         { width: doc.page.width - PAGE_MARGIN * 2, align: 'center', lineBreak: false },
       );
+    doc.page.margins.bottom = bottomMargin;
   }
 }
 
@@ -229,13 +280,13 @@ export const statementService = {
       drawTable(
         doc,
         [
-          { header: 'Description', width: 135 },
-          { header: 'Issued', width: 62 },
-          { header: 'Due', width: 62 },
-          { header: 'Total', width: 64, align: 'right' },
-          { header: 'Paid', width: 64, align: 'right' },
+          { header: 'Description', width: 123 },
+          { header: 'Issued', width: 70 },
+          { header: 'Due', width: 70 },
+          { header: 'Total', width: 60, align: 'right' },
+          { header: 'Paid', width: 60, align: 'right' },
           { header: 'Balance', width: 64, align: 'right' },
-          { header: 'Status', width: 44 },
+          { header: 'Status', width: 48 },
         ],
         receivables.map((item) => [
           item.description,
@@ -289,7 +340,11 @@ export const statementService = {
     const { buffer, customer, tenant, totals, today } = await this.generatePdf(customerId);
     const linkedReceivableId = receivableId ?? customer.receivables[0]?.id;
     if (!linkedReceivableId) {
-      throw AppError.unprocessable('The customer has no receivables to report');
+      throw new AppError(
+        422,
+        'NO_RECEIVABLES_TO_REPORT',
+        'The customer has no receivables to report',
+      );
     }
 
     const relativeUrl = await storageService.saveStatement(buffer);

@@ -47,7 +47,7 @@ export function createNotificationService(provider: WhatsAppProvider) {
     },
 
     async list(
-      filters: { receivableId?: string; status?: NotificationStatus },
+      filters: { receivableId?: string; customerId?: string; status?: NotificationStatus },
       pagination: Pagination,
     ) {
       const [notifications, total] = await notificationRepository.findMany(filters, pagination);

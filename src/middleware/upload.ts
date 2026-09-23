@@ -18,7 +18,13 @@ const proofUpload = multer({
     if (ALLOWED_PROOF_MIME_TYPES.includes(file.mimetype)) {
       callback(null, true);
     } else {
-      callback(AppError.badRequest('Payment proof must be a JPEG, PNG, WEBP image or a PDF'));
+      callback(
+        new AppError(
+          400,
+          'INVALID_PROOF_TYPE',
+          'Payment proof must be a JPEG, PNG, WEBP image or a PDF',
+        ),
+      );
     }
   },
 }).single('proof');

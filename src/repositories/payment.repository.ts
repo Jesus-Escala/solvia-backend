@@ -19,6 +19,14 @@ export const paymentRepository = {
     return prisma.payment.findMany({ where: { receivableId }, orderBy: { date: 'desc' } });
   },
 
+  /** Amounts and dates of payments dated within [from, to]. */
+  listBetween(from: Date, to: Date) {
+    return prisma.payment.findMany({
+      where: { date: { gte: from, lte: to } },
+      select: { amount: true, date: true },
+    });
+  },
+
   /** Sum of payments dated within [from, to]. */
   async sumBetween(from: Date, to: Date): Promise<number> {
     const result = await prisma.payment.aggregate({

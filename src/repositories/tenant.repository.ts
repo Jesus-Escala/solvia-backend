@@ -5,7 +5,8 @@ import { basePrisma, prisma } from '../lib/prisma';
 
 export interface CreateTenantData {
   tenant: { name: string; industry?: string | null; plan: TenantPlan };
-  admin: { name: string; email: string; passwordHash: string };
+  /** `passwordHash` is null for Google-only accounts, which carry a `googleId` instead. */
+  admin: { name: string; email: string; passwordHash: string | null; googleId?: string };
 }
 
 export const tenantRepository = {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { paginationSchema } from './common.schemas';
+import { paginationSchema, sortDirSchema } from './common.schemas';
 
 /** E.164 phone number, e.g. +51987654321. */
 export const phoneSchema = z
@@ -32,6 +32,8 @@ export const updateCustomerSchema = createCustomerSchema
 export const listCustomersQuerySchema = paginationSchema.extend({
   search: z.string().trim().max(120).optional(),
   risk: z.enum(['low', 'medium', 'high']).optional(),
+  sortBy: z.enum(['name', 'createdAt', 'outstanding', 'risk']).default('name'),
+  sortDir: sortDirSchema,
 });
 
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;

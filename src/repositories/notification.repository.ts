@@ -15,11 +15,13 @@ export const notificationRepository = {
   },
 
   findMany(
-    filters: { receivableId?: string; status?: NotificationStatus },
+    filters: { receivableId?: string; customerId?: string; status?: NotificationStatus },
     pagination: Pagination,
   ) {
     const where: Prisma.NotificationWhereInput = {
       ...(filters.receivableId && { receivableId: filters.receivableId }),
+      // Merged with the tenant filter on `receivable` by the scoped client.
+      ...(filters.customerId && { receivable: { customerId: filters.customerId } }),
       ...(filters.status && { status: filters.status }),
     };
     return prisma.$transaction([

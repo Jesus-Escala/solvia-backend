@@ -33,10 +33,12 @@ export const paymentService = {
     });
 
     if (outstanding <= 0) {
-      throw AppError.unprocessable('This receivable is already fully paid');
+      throw new AppError(422, 'RECEIVABLE_ALREADY_PAID', 'This receivable is already fully paid');
     }
     if (input.amount > outstanding + EPSILON) {
-      throw AppError.unprocessable(
+      throw new AppError(
+        422,
+        'PAYMENT_EXCEEDS_BALANCE',
         `Payment exceeds the outstanding balance of ${formatMoney(outstanding, env.CURRENCY)}`,
         { outstanding },
       );
@@ -45,7 +47,7 @@ export const paymentService = {
     const today = todayInTimezone(env.APP_TIMEZONE);
     const paymentDate = input.date ?? today;
     if (paymentDate.getTime() > today.getTime()) {
-      throw AppError.badRequest('Payment date cannot be in the future');
+      throw new AppError(400, 'PAYMENT_DATE_IN_FUTURE', 'Payment date cannot be in the future');
     }
 
     const proofUrl = proof
@@ -67,7 +69,11 @@ export const paymentService = {
       const paidAmount = toNumber(incremented.paidAmount);
       if (paidAmount > totalAmount + EPSILON) {
         // Another payment was registered concurrently; roll back.
-        throw AppError.conflict('Payment exceeds the outstanding balance');
+        throw new AppError(
+          409,
+          'PAYMENT_EXCEEDS_BALANCE',
+          'Payment exceeds the outstanding balance',
+        );
       }
 
       const status = deriveReceivableStatus(

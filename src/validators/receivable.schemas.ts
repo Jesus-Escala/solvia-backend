@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dateOnlySchema, moneySchema, paginationSchema } from './common.schemas';
+import { dateOnlySchema, moneySchema, paginationSchema, sortDirSchema } from './common.schemas';
 
 export const receivableStatusSchema = z.enum(['pending', 'partial', 'paid', 'overdue']);
 
@@ -45,6 +45,10 @@ export const listReceivablesQuerySchema = paginationSchema.extend({
   search: z.string().trim().max(120).optional(),
   dueFrom: dateOnlySchema.optional(),
   dueTo: dateOnlySchema.optional(),
+  sortBy: z
+    .enum(['dueDate', 'issueDate', 'totalAmount', 'description', 'status', 'customer', 'createdAt'])
+    .default('dueDate'),
+  sortDir: sortDirSchema,
 });
 
 export const paymentMethodSchema = z.enum(['yape', 'plin', 'cash', 'bank_transfer']);
