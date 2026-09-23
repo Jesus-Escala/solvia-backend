@@ -472,6 +472,7 @@ List endpoints accept `page` and `pageSize` (max 100) and return `{ data, meta: 
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `npm run dev`                                                         | Start with auto-reload (tsx)                                                         |
 | `npm run db:local`                                                    | Local PostgreSQL 17 on :5432 without Docker (data in `.local-db/`)                   |
+| `npm run db:studio`                                                   | Browse and edit the database in the browser (Prisma Studio, http://localhost:5555)   |
 | `npm run build` / `npm start`                                         | Compile to `dist/` and run                                                           |
 | `npm run db:migrate`                                                  | Create and apply a migration (development, interactive)                              |
 | `npm run db:deploy`                                                   | Apply pending migrations                                                             |

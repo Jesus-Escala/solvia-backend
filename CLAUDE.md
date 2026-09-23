@@ -14,6 +14,7 @@ page). They only reach this project through HTTP under `/api`.
 ```bash
 npm run db:local     # local PostgreSQL 17 on :5432, data in .local-db/ (no Docker needed)
 npm run dev          # API with hot reload on :4000 (Swagger UI at /api/docs)
+npm run db:studio    # browse/edit data in the browser (Prisma Studio, :5555)
 npm run db:deploy    # apply migrations      npm run db:seed  # demo data (--force to reset)
 npm run lint         # ESLint                npm run format   # Prettier
 npm run typecheck    # tsc --noEmit          npm test         # Vitest (unit, no DB needed)
