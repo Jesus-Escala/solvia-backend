@@ -1,4 +1,6 @@
 import type { Request, Response } from 'express';
+import { env } from '../config/env';
+import { todayInTimezone } from '../lib/dates';
 import { getPlatformAuth } from '../middleware/authenticate';
 import { accessRequestService } from '../services/accessRequest.service';
 import { platformService } from '../services/platform.service';
@@ -7,6 +9,7 @@ import {
   listAccessRequestsQuerySchema,
   updateAccessRequestSchema,
 } from '../validators/accessRequest.schemas';
+import { optionalPeriodQuerySchema } from '../validators/analytics.schemas';
 import { idParamSchema } from '../validators/common.schemas';
 import {
   createTenantSchema,
@@ -33,8 +36,9 @@ export const platformController = {
     res.json(await platformAuthService.me(getPlatformAuth(req).adminId));
   },
 
-  async overview(_req: Request, res: Response) {
-    res.json(await platformService.overview());
+  async overview(req: Request, res: Response) {
+    const period = optionalPeriodQuerySchema(todayInTimezone(env.APP_TIMEZONE)).parse(req.query);
+    res.json(await platformService.overview(period));
   },
 
   async listTenants(req: Request, res: Response) {

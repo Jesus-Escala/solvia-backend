@@ -1,6 +1,13 @@
 import type { Tenant } from '@prisma/client';
 import { env } from '../config/env';
 import {
+  bucketSeries,
+  moneyMetric,
+  sumWithin,
+  type AnalyticsPeriod,
+  type DateRange,
+} from '../domain/analytics';
+import {
   RECENT_COLLECTION_DAYS,
   lastActivityAt,
   monthlyAmounts,
@@ -11,7 +18,7 @@ import {
   topTenantsByOutstanding,
 } from '../domain/platform';
 import { AppError } from '../errors/AppError';
-import { addDays, addMonths, startOfMonth, todayInTimezone } from '../lib/dates';
+import { addDays, addMonths, formatDateOnly, startOfMonth, todayInTimezone } from '../lib/dates';
 import { roundMoney, toNumber } from '../lib/money';
 import { runWithTenant } from '../lib/tenantContext';
 import { platformRepository } from '../repositories/platform.repository';
@@ -66,6 +73,53 @@ async function activityStats(tenantIds: string[], today: Date) {
   };
 }
 
+/** Collected amount, payments and new tenants of `period` (and the previous one), all tenants. */
+async function periodStats(period: AnalyticsPeriod) {
+  const { previous } = period;
+  const [paymentRows, tenantRows] = await Promise.all([
+    platformRepository.paymentsByDay(previous.from, period.to),
+    platformRepository.tenantsCreatedByDay(previous.from, period.to, env.APP_TIMEZONE),
+  ]);
+  const payments = paymentRows.map((row) => ({
+    day: row.date,
+    amount: toNumber(row._sum.amount),
+    count: row._count._all,
+  }));
+  const newTenants = tenantRows.map((row) => ({ day: row.day, count: row.count }));
+  const current: DateRange = { from: period.from, to: period.to };
+
+  return {
+    period: {
+      from: formatDateOnly(period.from),
+      to: formatDateOnly(period.to),
+      granularity: period.granularity,
+      previous: { from: formatDateOnly(previous.from), to: formatDateOnly(previous.to) },
+    },
+    periodTotals: {
+      collected: moneyMetric(
+        sumWithin(payments, current, 'amount'),
+        sumWithin(payments, previous, 'amount'),
+      ),
+      newTenants: {
+        value: sumWithin(newTenants, current, 'count'),
+        previous: sumWithin(newTenants, previous, 'count'),
+      },
+      payments: {
+        value: sumWithin(payments, current, 'count'),
+        previous: sumWithin(payments, previous, 'count'),
+      },
+    },
+    periodSeries: bucketSeries(
+      period,
+      ['collected', 'newTenants'],
+      [
+        ...payments.map((row) => ({ day: row.day, collected: row.amount })),
+        ...newTenants.map((row) => ({ day: row.day, newTenants: row.count })),
+      ],
+    ),
+  };
+}
+
 type ActivityStats = Awaited<ReturnType<typeof activityStats>>;
 
 function toTenantRow(tenant: TenantWithCounts, stats: ActivityStats) {
@@ -91,7 +145,11 @@ function toTenantRow(tenant: TenantWithCounts, stats: ActivityStats) {
 
 /** Cross-tenant metrics and tenant management for the platform backoffice. */
 export const platformService = {
-  async overview() {
+  /**
+   * Platform-wide dashboard. With a `period`, it also returns the collected amount, payments and
+   * new tenants of that period vs the previous one, and their series per bucket.
+   */
+  async overview(period: AnalyticsPeriod | null = null) {
     const today = todayInTimezone(env.APP_TIMEZONE);
     const signupStart = addMonths(startOfMonth(today), -(SIGNUP_MONTHS - 1));
     const collectionStart = addMonths(startOfMonth(today), -(COLLECTION_MONTHS - 1));
@@ -108,6 +166,7 @@ export const platformService = {
       payments,
       tenants,
       pendingAccessRequests,
+      periodData,
     ] = await Promise.all([
       platformRepository.tenantCountsByStatus(),
       platformRepository.tenantCountsByPlan(),
@@ -118,9 +177,10 @@ export const platformService = {
       // One extra day so sign-ups late on the last day (UTC) before the window are bucketed
       // by their local date below.
       platformRepository.tenantSignupsSince(addDays(signupStart, -1)),
-      platformRepository.paymentsBetween(collectionStart, today),
+      platformRepository.paymentsByDay(collectionStart, today),
       platformRepository.tenantSummaries(),
       accessRequestService.countPending(),
+      period ? periodStats(period) : null,
     ]);
 
     const countByStatus = (status: 'active' | 'suspended') =>
@@ -138,9 +198,9 @@ export const platformService = {
       [...balanceByTenant.values()].reduce((sum, balance) => sum + balance.outstanding, 0),
     );
 
-    const paymentPoints = payments.map((payment) => ({
-      date: payment.date,
-      amount: toNumber(payment.amount),
+    const paymentPoints = payments.map((row) => ({
+      date: row.date,
+      amount: toNumber(row._sum.amount),
     }));
     const collectedLast30Days = roundMoney(
       paymentPoints
@@ -181,6 +241,7 @@ export const platformService = {
         })),
         TOP_TENANTS,
       ),
+      ...periodData,
       generatedAt: new Date().toISOString(),
     };
   },

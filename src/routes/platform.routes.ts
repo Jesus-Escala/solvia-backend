@@ -86,12 +86,20 @@ platformRouter.get('/auth/me', platformController.me);
  *   get:
  *     tags: [Platform admin]
  *     summary: Platform-wide totals, plan mix, sign-up and collection trends, top tenants
+ *     description: >
+ *       With any of `from`, `to` or `granularity` (same rules as `/dashboard/analytics`), the
+ *       response also includes `period`, `periodTotals` and `periodSeries`.
+ *     parameters:
+ *       - { in: query, name: from, schema: { type: string, format: date } }
+ *       - { in: query, name: to, schema: { type: string, format: date } }
+ *       - { in: query, name: granularity, schema: { type: string, enum: [day, week, month] } }
  *     responses:
  *       200:
  *         description: Overview
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/PlatformOverview' }
+ *       400: { $ref: '#/components/responses/ValidationError' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
 platformRouter.get('/overview', platformController.overview);

@@ -1,5 +1,6 @@
 import { Prisma, type TenantPlan, type TenantStatus } from '@prisma/client';
 import { basePrisma } from '../lib/prisma';
+import { sqlLocalDay, sqlLocalDayWithin } from './sql';
 import { tenantUserSelect } from './user.repository';
 
 /**
@@ -124,12 +125,24 @@ export const platformRepository = {
     `;
   },
 
-  /** Amounts and dates of payments (all tenants) dated within [from, to]. */
-  paymentsBetween(from: Date, to: Date) {
-    return basePrisma.payment.findMany({
+  /** Sum and count of payments (all tenants) per calendar day within [from, to]. */
+  paymentsByDay(from: Date, to: Date) {
+    return basePrisma.payment.groupBy({
+      by: ['date'],
       where: { date: { gte: from, lte: to } },
-      select: { amount: true, date: true },
+      _sum: { amount: true },
+      _count: { _all: true },
     });
+  },
+
+  /** Tenants created per local calendar day (in `timeZone`) within [from, to]. */
+  tenantsCreatedByDay(from: Date, to: Date, timeZone: string) {
+    return basePrisma.$queryRaw<Array<{ day: Date; count: number }>>`
+      SELECT ${sqlLocalDay('t."createdAt"', timeZone)} AS "day", COUNT(*)::int AS "count"
+      FROM "tenants" t
+      WHERE ${sqlLocalDayWithin('t."createdAt"', from, to, timeZone)}
+      GROUP BY 1
+    `;
   },
 
   tenantCountsByStatus() {
