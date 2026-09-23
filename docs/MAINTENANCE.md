@@ -205,7 +205,7 @@ Installed PWAs pick up the new frontend on their own: nginx serves `sw.js` and `
 - **Uploads on local disk** do not work across replicas. Move `storageService` to S3/GCS first; it is the only file that touches the disk.
 - **Heavy endpoints:**
   - `GET /customers` with `risk=...`, `sortBy=risk` or `sortBy=outstanding` computes risk scores and balances in memory for every matching customer.
-  - `GET /dashboard/summary` loads all unpaid receivables and every customer's receivables (for the risk distribution).
+  - `GET /dashboard/summary`, `/dashboard/cash-flow` and `/dashboard/analytics` aggregate in SQL (see ARCHITECTURE §8.5 and §8.8); the risk distribution still scores every customer, from one row per receivable. Check them with `npm run db:seed:stress` (1,000 customers, 15,000 receivables, ~20,000 payments): all under 300 ms locally.
   - `GET /admin/overview` and `GET /admin/tenants?sortBy=outstanding` aggregate across all tenants.
 
   All are fine for SMB tenants (thousands of rows) and a moderate number of tenants. For very large tenants or many tenants, precompute or cache them.

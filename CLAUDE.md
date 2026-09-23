@@ -16,6 +16,7 @@ npm run db:local     # local PostgreSQL 17 on :5432, data in .local-db/ (no Dock
 npm run dev          # API with hot reload on :4000 (Swagger UI at /api/docs)
 npm run db:studio    # browse/edit data in the browser (Prisma Studio, :5555)
 npm run db:deploy    # apply migrations      npm run db:seed  # demo data (--force to reset)
+npm run db:seed:stress  # (re)create only the big "Comercial Grande SAC" tenant (1k customers, 15k receivables)
 npm run lint         # ESLint                npm run format   # Prettier
 npm run typecheck    # tsc --noEmit          npm test         # Vitest (unit, no DB needed)
 npm run build        # compile to dist/      npm start        # run the build
@@ -39,6 +40,12 @@ Pure logic without I/O goes in `src/domain/*` and gets unit tests in `tests/`.
   query by the `tenantId` from `src/lib/tenantContext.ts` (AsyncLocalStorage) and fails closed
   without it. Use `basePrisma` ONLY for deliberate cross-tenant work (auth lookups, platform
   admin, jobs, public access requests). Jobs run per tenant via `src/jobs/tenantJobRunner.ts`.
+  **`$queryRaw` is never scoped** (not even on `prisma`): filter by `requireTenantId()` yourself and
+  join payments/notifications through `receivables` (see `src/repositories/analytics.repository.ts`
+  and its test `tests/analyticsRepository.test.ts`, which must list every raw query).
+- Dashboards aggregate in SQL (`analytics.repository.ts`) and shape the small results with pure
+  functions (`src/domain/analytics.ts`, `portfolio.ts`, `cashFlow.ts`); never load whole tables.
+  Compare `date` columns with `sqlDate()` literals (see the comment in `src/repositories/sql.ts`).
 - Auth realms (`src/services/token.service.ts`, `src/middleware/authenticate.ts`):
   - tenant tokens → `authenticate` + `tenantScope` (app); `pwc` claim blocks everything except
     `/auth/me` and `/auth/change-password` until a temporary password is changed;
@@ -70,6 +77,8 @@ new users get a temporary password (`src/domain/temporaryPassword.ts`) and must 
 - On Windows `prisma generate` fails with EPERM while `npm run dev` is running (it locks the
   engine DLL): stop the dev server first.
 - Seed: `src/database/seed.ts` (idempotent platform admin; `--force` wipes demo data).
+  Stress data: `src/database/seedStress.ts` (`npm run db:seed:stress`; `admin@comercialgrande.pe` /
+  `cobranza@comercialgrande.pe`, `Password123!`); it only deletes and recreates that tenant.
 
 ## Adding an endpoint (checklist)
 
