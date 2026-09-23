@@ -11,25 +11,32 @@ const publicUserSelect = {
   createdAt: true,
 } as const;
 
+/** Tenant status is needed by every sign-in path to reject suspended businesses. */
+const authInclude = { tenant: { select: { status: true } } } as const;
+
 export const userRepository = {
   /** Unscoped lookup used by login: the tenant is not known before authentication. */
   findByEmailForAuth(email: string) {
-    return basePrisma.user.findUnique({ where: { email } });
+    return basePrisma.user.findUnique({ where: { email }, include: authInclude });
   },
 
   /** Unscoped lookup used by Google sign-in. */
   findByGoogleIdForAuth(googleId: string) {
-    return basePrisma.user.findUnique({ where: { googleId } });
+    return basePrisma.user.findUnique({ where: { googleId }, include: authInclude });
   },
 
   /** Links a Google account to an existing user (first Google sign-in with the same email). */
   linkGoogleAccount(userId: string, googleId: string) {
-    return basePrisma.user.update({ where: { id: userId }, data: { googleId } });
+    return basePrisma.user.update({
+      where: { id: userId },
+      data: { googleId },
+      include: authInclude,
+    });
   },
 
   /** Unscoped lookup used by token refresh. */
   findByIdForAuth(id: string) {
-    return basePrisma.user.findUnique({ where: { id } });
+    return basePrisma.user.findUnique({ where: { id }, include: authInclude });
   },
 
   emailExists(email: string) {

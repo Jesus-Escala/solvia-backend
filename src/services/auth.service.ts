@@ -1,3 +1,4 @@
+import type { TenantStatus } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { env } from '../config/env';
 import { AppError } from '../errors/AppError';
@@ -32,6 +33,13 @@ function toSessionUser(user: {
   };
 }
 
+/** Users of a suspended business cannot sign in or refresh their session. */
+function assertTenantActive(user: { tenant: { status: TenantStatus } }) {
+  if (user.tenant.status === 'suspended') {
+    throw new AppError(403, 'TENANT_SUSPENDED', 'This business is suspended');
+  }
+}
+
 export const authService = {
   /** Registers a new business (tenant) together with its first admin user. */
   async register(input: RegisterInput) {
@@ -58,6 +66,7 @@ export const authService = {
     if (!user || !valid) {
       throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
     }
+    assertTenantActive(user);
     return { user: toSessionUser(user), ...issueTokens(user) };
   },
 
@@ -84,11 +93,13 @@ export const authService = {
           profile: { email: profile.email, name: profile.name },
         };
       case 'link_and_sign_in': {
+        assertTenantActive(userByEmail!);
         const user = await userRepository.linkGoogleAccount(action.userId, profile.googleId);
         return { user: toSessionUser(user), ...issueTokens(user) };
       }
       case 'sign_in': {
         const user = (userByGoogleId ?? userByEmail)!;
+        assertTenantActive(user);
         return { user: toSessionUser(user), ...issueTokens(user) };
       }
       case 'register': {
@@ -126,6 +137,7 @@ export const authService = {
     if (!user) {
       throw AppError.unauthorized('User no longer exists');
     }
+    assertTenantActive(user);
     return issueTokens(user);
   },
 

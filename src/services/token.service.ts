@@ -15,6 +15,24 @@ export interface RefreshTokenPayload {
   type: 'refresh';
 }
 
+/**
+ * Platform (backoffice) tokens are signed with the same secrets but carry their own `type` and
+ * `aud` claims, so they are never accepted where a tenant token is expected and vice versa.
+ */
+export const PLATFORM_AUDIENCE = 'solvia-platform';
+
+export interface PlatformAccessTokenPayload {
+  sub: string;
+  scope: 'platform';
+  type: 'platform_access';
+}
+
+export interface PlatformRefreshTokenPayload {
+  sub: string;
+  scope: 'platform';
+  type: 'platform_refresh';
+}
+
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
@@ -39,10 +57,42 @@ export function issueTokens(user: { id: string; tenantId: string; role: UserRole
   };
 }
 
-function verify<T extends { type: string }>(token: string, secret: string, type: T['type']): T {
+export function issuePlatformTokens(admin: { id: string }): TokenPair {
+  const accessPayload: PlatformAccessTokenPayload = {
+    sub: admin.id,
+    scope: 'platform',
+    type: 'platform_access',
+  };
+  const refreshPayload: PlatformRefreshTokenPayload = {
+    sub: admin.id,
+    scope: 'platform',
+    type: 'platform_refresh',
+  };
+
+  return {
+    accessToken: jwt.sign(accessPayload, env.JWT_ACCESS_SECRET, {
+      audience: PLATFORM_AUDIENCE,
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN as SignOptions['expiresIn'],
+    }),
+    refreshToken: jwt.sign(refreshPayload, env.JWT_REFRESH_SECRET, {
+      audience: PLATFORM_AUDIENCE,
+      expiresIn: env.JWT_REFRESH_EXPIRES_IN as SignOptions['expiresIn'],
+    }),
+  };
+}
+
+function verify<T extends { type: string }>(
+  token: string,
+  secret: string,
+  type: T['type'],
+  audience?: string,
+): T {
   try {
-    const payload = jwt.verify(token, secret) as T;
-    if (payload.type !== type) {
+    const payload = jwt.verify(token, secret, audience ? { audience } : {}) as T & {
+      aud?: string | string[];
+    };
+    // Tenant tokens never carry an audience; a token with one belongs to another realm.
+    if (payload.type !== type || (!audience && payload.aud !== undefined)) {
       throw AppError.unauthorized('Invalid token type');
     }
     return payload;
@@ -60,4 +110,22 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
 
 export function verifyRefreshToken(token: string): RefreshTokenPayload {
   return verify<RefreshTokenPayload>(token, env.JWT_REFRESH_SECRET, 'refresh');
+}
+
+export function verifyPlatformAccessToken(token: string): PlatformAccessTokenPayload {
+  return verify<PlatformAccessTokenPayload>(
+    token,
+    env.JWT_ACCESS_SECRET,
+    'platform_access',
+    PLATFORM_AUDIENCE,
+  );
+}
+
+export function verifyPlatformRefreshToken(token: string): PlatformRefreshTokenPayload {
+  return verify<PlatformRefreshTokenPayload>(
+    token,
+    env.JWT_REFRESH_SECRET,
+    'platform_refresh',
+    PLATFORM_AUDIENCE,
+  );
 }

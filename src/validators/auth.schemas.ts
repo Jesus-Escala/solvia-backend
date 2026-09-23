@@ -7,9 +7,9 @@ const email = z
 
 /**
  * Password policy for new passwords. Mirrored by the register form checklist
- * (frontend/src/components/auth/passwordRules.ts); keep both in sync.
+ * (frontend/packages/ui/src/components/passwordRules.ts); keep both in sync.
  */
-const password = z
+export const passwordSchema = z
   .string()
   .min(8, 'Password must be at least 8 characters')
   .max(128, 'Password must be at most 128 characters')
@@ -23,7 +23,7 @@ export const registerSchema = z.object({
   plan: z.enum(['free', 'starter', 'pro']).default('free'),
   name: z.string().trim().min(2).max(120),
   email,
-  password,
+  password: passwordSchema,
 });
 
 export const loginSchema = z.object({
@@ -46,7 +46,7 @@ export const googleSignInSchema = z.object({
 export const createUserSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email,
-  password,
+  password: passwordSchema,
   role: z.enum(['admin', 'collector']).default('collector'),
 });
 

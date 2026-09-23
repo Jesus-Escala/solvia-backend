@@ -22,6 +22,11 @@ enum TenantPlan {
   pro
 }
 
+enum TenantStatus {
+  active
+  suspended
+}
+
 enum UserRole {
   admin
   collector
@@ -63,11 +68,13 @@ enum NotificationStatus {
 
 /// A business registered in Solvia. Every other tenant-owned record references it.
 model Tenant {
-  id        String     @id @default(uuid())
+  id        String       @id @default(uuid())
   name      String
   industry  String?
-  plan      TenantPlan @default(free)
-  createdAt DateTime   @default(now())
+  plan      TenantPlan   @default(free)
+  /// Suspended tenants cannot sign in or refresh their session.
+  status    TenantStatus @default(active)
+  createdAt DateTime     @default(now())
 
   users            User[]
   customers        Customer[]
@@ -218,4 +225,16 @@ model MonthlyReport {
 
   @@unique([tenantId, period])
   @@map("monthly_reports")
+}
+
+/// Solvia staff account with access to the platform backoffice (all tenants). Not tenant-owned.
+model PlatformAdmin {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
+
+  @@map("platform_admins")
 }

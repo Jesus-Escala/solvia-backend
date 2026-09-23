@@ -18,7 +18,7 @@ export const openApiSpec = swaggerJsdoc({
       title: 'Solvia API',
       version: '1.0.0',
       description:
-        'Multi-tenant credit management and collections API. Authenticate with `POST /auth/login` and use the access token as a Bearer token.',
+        'Multi-tenant credit management and collections API. Authenticate with `POST /auth/login` and use the access token as a Bearer token. Platform backoffice routes (`/admin/*`) require a platform admin token from `POST /admin/auth/login`.',
     },
     servers: [{ url: `${env.PUBLIC_API_URL}/api` }],
     security: [{ bearerAuth: [] }],
@@ -89,6 +89,133 @@ export const openApiSpec = swaggerJsdoc({
               },
             },
           ],
+        },
+        PlatformAdmin: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            email: { type: 'string', format: 'email' },
+            name: { type: 'string' },
+          },
+        },
+        PlatformSession: {
+          allOf: [
+            { $ref: '#/components/schemas/TokenPair' },
+            {
+              type: 'object',
+              properties: { admin: { $ref: '#/components/schemas/PlatformAdmin' } },
+            },
+          ],
+        },
+        PlatformTenantRow: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            name: { type: 'string' },
+            industry: { type: 'string', nullable: true },
+            plan: { type: 'string', enum: ['free', 'starter', 'pro'] },
+            status: { type: 'string', enum: ['active', 'suspended'] },
+            createdAt: { type: 'string', format: 'date-time' },
+            users: { type: 'integer' },
+            customers: { type: 'integer' },
+            receivables: { type: 'integer' },
+            outstanding: { type: 'number' },
+            collectedLast30Days: { type: 'number' },
+            lastActivityAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Latest of the last payment date, last receivable and tenant creation',
+            },
+          },
+        },
+        PlatformTenantDetail: {
+          allOf: [
+            { $ref: '#/components/schemas/PlatformTenantRow' },
+            {
+              type: 'object',
+              properties: {
+                overdue: { type: 'number' },
+                users: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string', format: 'uuid' },
+                      name: { type: 'string' },
+                      email: { type: 'string' },
+                      role: { type: 'string', enum: ['admin', 'collector'] },
+                      createdAt: { type: 'string', format: 'date-time' },
+                      hasGoogle: { type: 'boolean' },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+        PlatformOverview: {
+          type: 'object',
+          properties: {
+            totals: {
+              type: 'object',
+              properties: {
+                tenants: { type: 'integer' },
+                activeTenants: { type: 'integer' },
+                suspendedTenants: { type: 'integer' },
+                users: { type: 'integer' },
+                customers: { type: 'integer' },
+                receivables: { type: 'integer' },
+                outstanding: { type: 'number' },
+                collectedLast30Days: { type: 'number' },
+                newTenantsThisMonth: { type: 'integer' },
+              },
+            },
+            tenantsByPlan: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  plan: { type: 'string', enum: ['free', 'starter', 'pro'] },
+                  count: { type: 'integer' },
+                },
+              },
+            },
+            signups: {
+              type: 'array',
+              description: 'Last 12 months, oldest first',
+              items: {
+                type: 'object',
+                properties: {
+                  period: { type: 'string', example: '2026-09' },
+                  count: { type: 'integer' },
+                },
+              },
+            },
+            collections: {
+              type: 'array',
+              description: 'Payments of every tenant, last 6 months, oldest first',
+              items: {
+                type: 'object',
+                properties: {
+                  period: { type: 'string', example: '2026-09' },
+                  amount: { type: 'number' },
+                },
+              },
+            },
+            topTenants: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', format: 'uuid' },
+                  name: { type: 'string' },
+                  outstanding: { type: 'number' },
+                  customers: { type: 'integer' },
+                },
+              },
+            },
+            generatedAt: { type: 'string', format: 'date-time' },
+          },
         },
         CustomerInput: {
           type: 'object',

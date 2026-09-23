@@ -6,10 +6,16 @@ export interface AuthContext {
   role: UserRole;
 }
 
+/** Authenticated platform (backoffice) administrator. */
+export interface PlatformAuthContext {
+  adminId: string;
+}
+
 declare global {
   namespace Express {
     interface Request {
       auth?: AuthContext;
+      platformAuth?: PlatformAuthContext;
     }
   }
 }

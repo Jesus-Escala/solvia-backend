@@ -4,6 +4,7 @@ import { tenantScope } from '../middleware/tenantScope';
 import { authRouter, usersRouter } from './auth.routes';
 import { customerRouter } from './customer.routes';
 import { dashboardRouter } from './dashboard.routes';
+import { platformRouter } from './platform.routes';
 import { receivableRouter } from './receivable.routes';
 import { settingsRouter } from './settings.routes';
 
@@ -25,6 +26,9 @@ apiRouter.get('/health', (_req, res) => {
 
 // Public routes
 apiRouter.use('/auth', authRouter);
+
+// Platform backoffice: separate admin accounts and tokens, cross-tenant by design.
+apiRouter.use('/admin', platformRouter);
 
 // Everything below requires a valid access token and runs inside the caller's tenant scope.
 const protectedRouter = Router();

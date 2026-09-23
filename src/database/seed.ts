@@ -7,10 +7,13 @@ import { logger } from '../lib/logger';
 import { roundMoney } from '../lib/money';
 import { basePrisma } from '../lib/prisma';
 import { runWithTenant } from '../lib/tenantContext';
+import { platformAdminRepository } from '../repositories/platformAdmin.repository';
 import { tenantRepository } from '../repositories/tenant.repository';
 import { monthlyReportService } from '../services/monthlyReport.service';
+import { passwordSchema } from '../validators/auth.schemas';
 
 export const DEMO_PASSWORD = 'Password123!';
+export const DEFAULT_PLATFORM_ADMIN_EMAIL = 'admin@solvia.app';
 
 type Profile = 'punctual' | 'late' | 'defaulter' | 'new' | 'mixed';
 
@@ -315,6 +318,23 @@ async function seedTenant(
   );
 }
 
+/**
+ * Creates the platform (backoffice) admin, or updates its name and password when it already
+ * exists. Credentials come from PLATFORM_ADMIN_EMAIL / PLATFORM_ADMIN_PASSWORD when set.
+ */
+export async function seedPlatformAdmin() {
+  const email = (env.PLATFORM_ADMIN_EMAIL ?? DEFAULT_PLATFORM_ADMIN_EMAIL).toLowerCase().trim();
+  const password = passwordSchema.parse(env.PLATFORM_ADMIN_PASSWORD ?? DEMO_PASSWORD);
+  await platformAdminRepository.upsert({
+    email,
+    name: 'Solvia Admin',
+    passwordHash: await bcrypt.hash(password, env.BCRYPT_SALT_ROUNDS),
+  });
+  logger.info(
+    `Platform admin ready (login: ${email}${env.PLATFORM_ADMIN_PASSWORD ? '' : ` / ${DEMO_PASSWORD}`})`,
+  );
+}
+
 export async function seed() {
   const today = todayInTimezone(env.APP_TIMEZONE);
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, env.BCRYPT_SALT_ROUNDS);
@@ -323,8 +343,12 @@ export async function seed() {
   }
 }
 
-/** Seeds demo data only when the database has no tenants (safe to run on every start). */
+/**
+ * Seeds demo data only when the database has no tenants (safe to run on every start).
+ * The platform admin is always upserted.
+ */
 export async function seedIfEmpty() {
+  await seedPlatformAdmin();
   const tenants = await basePrisma.tenant.count();
   if (tenants > 0) {
     logger.info(`Database already contains ${tenants} tenant(s); skipping seed`);
@@ -340,6 +364,7 @@ async function runCli() {
   if (force) {
     logger.warn('--force: deleting all existing data');
     await basePrisma.tenant.deleteMany(); // Cascades to every tenant-owned table.
+    await seedPlatformAdmin();
     await seed();
   } else if (!(await seedIfEmpty())) {
     logger.info('Run "npm run db:seed -- --force" to wipe the database and reseed.');

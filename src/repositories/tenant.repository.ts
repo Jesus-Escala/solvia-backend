@@ -32,9 +32,12 @@ export const tenantRepository = {
     });
   },
 
-  /** All tenant ids, for job orchestration. */
-  listIds() {
-    return basePrisma.tenant.findMany({ select: { id: true, name: true } });
+  /** Ids of active tenants, for job orchestration (suspended tenants get no reminders). */
+  listActiveIds() {
+    return basePrisma.tenant.findMany({
+      where: { status: 'active' },
+      select: { id: true, name: true },
+    });
   },
 
   /** The tenant of the current context. */

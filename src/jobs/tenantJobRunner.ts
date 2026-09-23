@@ -10,14 +10,14 @@ export interface TenantJobResult<T> {
 }
 
 /**
- * Runs `task` once per tenant, each inside its own tenant context, so jobs reuse the same
+ * Runs `task` once per active tenant, each inside its own tenant context, so jobs reuse the same
  * tenant-scoped services as the API. A failure in one tenant does not stop the others.
  */
 export async function runForEachTenant<T>(
   jobName: string,
   task: () => Promise<T>,
 ): Promise<Array<TenantJobResult<T>>> {
-  const tenants = await tenantRepository.listIds();
+  const tenants = await tenantRepository.listActiveIds();
   const results: Array<TenantJobResult<T>> = [];
 
   for (const tenant of tenants) {

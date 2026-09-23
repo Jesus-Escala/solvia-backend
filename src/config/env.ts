@@ -6,6 +6,10 @@ const booleanString = z
   .default('false')
   .transform((value) => value === 'true');
 
+/** Optional value: an empty string (e.g. `KEY=` in Docker Compose) counts as "not set". */
+const optional = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((value) => (value === '' ? undefined : value), schema.optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
@@ -33,9 +37,13 @@ const envSchema = z.object({
   PAYMENT_PROVIDER: z.enum(['mock', 'culqi', 'mercadopago']).default('mock'),
 
   /** OAuth client ID for "Sign in with Google" (Google Cloud Console). Optional. */
-  GOOGLE_CLIENT_ID: z.string().trim().min(1).optional(),
+  GOOGLE_CLIENT_ID: optional(z.string().trim().min(1)),
 
   SEED_ON_START: booleanString,
+
+  /** Platform (backoffice) admin created by the seed. Defaults: admin@solvia.app / Password123! */
+  PLATFORM_ADMIN_EMAIL: optional(z.email()),
+  PLATFORM_ADMIN_PASSWORD: optional(z.string().min(8)),
 });
 
 const parsed = envSchema.safeParse(process.env);
