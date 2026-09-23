@@ -1,0 +1,55 @@
+# Whole Solvia platform: API + PostgreSQL + web app (8080) + landing (8081) + backoffice (8082).
+# Clone the four repositories side by side (solvia-backend, solvia-app, solvia-admin,
+# solvia-landing), then from solvia-backend:
+#   docker compose -f docker-compose.yml -f docker-compose.full.yml up -d --build
+# If the frontends live elsewhere, set SOLVIA_REPOS_DIR (the folder that contains them), e.g.
+#   SOLVIA_REPOS_DIR=../frontend docker compose -f docker-compose.yml -f docker-compose.full.yml up -d
+
+services:
+  # The three frontends are independent projects (each one its own repository); each image
+  # proxies /api to API_UPSTREAM.
+
+  # Business web app: http://localhost:8080
+  app:
+    build:
+      context: ${SOLVIA_REPOS_DIR:-..}/solvia-app
+      args:
+        VITE_LANDING_URL: http://localhost:8081
+    restart: unless-stopped
+    environment:
+      API_UPSTREAM: http://backend:4000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - '8080:80'
+
+  # Public landing page: http://localhost:8081 (its CTAs open the web app)
+  landing:
+    build:
+      context: ${SOLVIA_REPOS_DIR:-..}/solvia-landing
+      args:
+        VITE_APP_URL: http://localhost:8080
+    restart: unless-stopped
+    environment:
+      API_UPSTREAM: http://backend:4000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - '8081:80'
+
+  # Platform backoffice: http://localhost:8082
+  admin:
+    build:
+      context: ${SOLVIA_REPOS_DIR:-..}/solvia-admin
+      args:
+        VITE_APP_URL: http://localhost:8080
+    restart: unless-stopped
+    environment:
+      API_UPSTREAM: http://backend:4000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - '8082:80'

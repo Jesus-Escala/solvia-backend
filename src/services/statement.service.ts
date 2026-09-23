@@ -49,7 +49,7 @@ function renderToBuffer(build: (doc: PdfDoc) => void): Promise<Buffer> {
 
 /**
  * Solvia mark geometry (64x64): Soli the owl + gold S/ coin. Same values as the web logo
- * (frontend/src/components/brand/owlGeometry.ts).
+ * (src/ui/brand/owlGeometry.ts in the frontend repositories).
  */
 const LOGO = {
   head: 'M13 17C13.5 14.5 16 13.8 18 15L24 19.6C26.5 18.9 29.2 18.5 32 18.5C34.8 18.5 37.5 18.9 40 19.6L46 15C48 13.8 50.5 14.5 51 17L51.5 29.5C52.5 32 53 34.7 53 37.5C53 47.7 43.6 54.5 32 54.5C20.4 54.5 11 47.7 11 37.5C11 34.7 11.5 32 12.5 29.5Z',

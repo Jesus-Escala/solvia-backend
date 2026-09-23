@@ -1,0 +1,71 @@
+# Solvia API + PostgreSQL.  docker compose up -d --build
+# To run the whole platform (API + web app + backoffice + landing) see docker-compose.full.yml.
+name: solvia
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: solvia
+      POSTGRES_PASSWORD: solvia
+      POSTGRES_DB: solvia
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U solvia -d solvia']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://solvia:solvia@postgres:5432/solvia?schema=public
+      PUBLIC_API_URL: http://localhost:4000
+      CORS_ORIGINS: http://localhost:8080,http://localhost:8081,http://localhost:8082,http://localhost:5173,http://localhost:5174,http://localhost:5175
+      APP_TIMEZONE: America/Lima
+      CURRENCY: PEN
+      # Change these secrets outside local development.
+      JWT_ACCESS_SECRET: local-docker-access-secret-change-me-please
+      JWT_REFRESH_SECRET: local-docker-refresh-secret-change-me-please
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      STORAGE_DIR: /app/storage
+      JOBS_ENABLED: 'true'
+      WHATSAPP_PROVIDER: mock
+      PAYMENT_PROVIDER: mock
+      # Loads demo tenants on the first start (skipped when data already exists).
+      SEED_ON_START: 'true'
+      # Optional: Google sign-in and the seeded platform (backoffice) admin.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      PLATFORM_ADMIN_EMAIL: ${PLATFORM_ADMIN_EMAIL:-admin@solvia.app}
+      PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD:-Password123!}
+    ports:
+      - '4000:4000'
+    volumes:
+      - backend-storage:/app/storage
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  postgres-data:
+  backend-storage:

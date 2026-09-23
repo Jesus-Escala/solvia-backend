@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      # Unit tests (pure domain logic) need no database.
+      - run: npm test
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          JWT_ACCESS_SECRET: ci-access-secret-at-least-32-characters-long
+          JWT_REFRESH_SECRET: ci-refresh-secret-at-least-32-characters-long
+      - run: npm run build
