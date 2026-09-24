@@ -391,14 +391,14 @@ Services throw `new AppError(status, 'CODE', 'English message')` (for example `P
 11. **Projected cash flow:** outstanding amounts grouped by week or month of due date, shown as a bar chart with a table view. Overdue amounts are reported separately.
 12. **Risk score:** a badge in the customer list and in the customer detail view.
 13. **Monthly report:** generated on the last day of each month (total collected, total pending, top 5 overdue customers) and shown on the dashboard. Admins can also generate one on demand.
-14. **Help and onboarding:** help center, guided tour, and the "Soli" assistant menu (the owl mascot) in the top bar.
+14. **Help and onboarding:** help center, guided tour, and the "Bowl" assistant menu (the owl mascot) in the top bar.
 15. **Platform backoffice:**
     - overview with charts (plan mix, sign-ups, collections, top tenants) and a pending-requests KPI
     - businesses table with search, filters and sorting, and "Nueva empresa"
     - business detail with user management, plan changes and suspend/reactivate
     - **Solicitudes** inbox: convert, dismiss or restore requests, and contact the requester by WhatsApp or email
 16. **Public landing page:**
-    - sections: hero, features, how it works, Soli, pricing, FAQ
+    - sections: hero, features, how it works, Bowl, pricing, FAQ
     - a "Solicitar acceso" modal form (honeypot, rate-limited), with `#solicitar-acceso` and `#solicitar-acceso-<plan>` deep links
     - "Iniciar sesión" buttons that open the web app
 17. **Across all frontends:** Spanish/English, light/dark/system theme, a responsive layout (bottom sheets, and bottom navigation on phones) and reduced-motion support. The web app and the backoffice are installable PWAs with an update prompt.

@@ -114,7 +114,7 @@ function renderToBuffer(build: (doc: PdfDoc) => void): Promise<Buffer> {
 }
 
 /**
- * Solvia mark: Soli's illustrated face (the same drawing as the web mascot and logo,
+ * Solvia mark: Bowl's illustrated face (the same drawing as the web mascot and logo,
  * src/ui/brand/Mascot.tsx in the frontends) on the teal tile, with the gold S/ coin.
  * Face paths are in the mascot's 120x131 view coordinates.
  */
