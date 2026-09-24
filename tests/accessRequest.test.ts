@@ -16,6 +16,15 @@ describe('createAccessRequestSchema', () => {
     expect(result.message).toBeUndefined();
   });
 
+  it('keeps the modules of interest, without duplicates', () => {
+    expect(createAccessRequestSchema.parse(valid).modules).toEqual([]);
+    expect(
+      createAccessRequestSchema.parse({ ...valid, modules: ['sales', 'sales', 'inventory'] })
+        .modules,
+    ).toEqual(['sales', 'inventory']);
+    expect(createAccessRequestSchema.safeParse({ ...valid, modules: ['crm'] }).success).toBe(false);
+  });
+
   it('validates the phone format and length', () => {
     for (const phone of ['12345', '+51 954 abc 456', '1'.repeat(21)]) {
       expect(createAccessRequestSchema.safeParse({ ...valid, phone }).success).toBe(false);

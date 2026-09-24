@@ -1,10 +1,10 @@
-import type { MessageTemplateType, TenantPlan } from '@prisma/client';
+import type { MessageTemplateType, TenantModule, TenantPlan } from '@prisma/client';
 import { DEFAULT_REMINDER_RULES } from '../domain/reminderRules';
 import { DEFAULT_TEMPLATES } from '../domain/template';
 import { basePrisma, prisma } from '../lib/prisma';
 
 export interface CreateTenantData {
-  tenant: { name: string; industry?: string | null; plan: TenantPlan };
+  tenant: { name: string; industry?: string | null; plan: TenantPlan; modules?: TenantModule[] };
   /** `passwordHash` is null for Google-only accounts, which carry a `googleId` instead. */
   admin: {
     name: string;

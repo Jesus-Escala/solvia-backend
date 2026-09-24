@@ -114,6 +114,7 @@ export function toAccessRequestDto(request: AccessRequest) {
     phone: request.phone,
     industry: request.industry,
     message: request.message,
+    modules: request.modules,
     status: request.status,
     tenantId: request.tenantId,
     createdAt: request.createdAt.toISOString(),

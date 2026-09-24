@@ -345,6 +345,8 @@ model AccessRequest {
   phone        String
   industry     String?
   message      String?
+  /// Optional modules the business is interested in (checked on the landing form).
+  modules      TenantModule[]      @default([])
   status       AccessRequestStatus @default(pending)
   /// Tenant created from this request (set when converted).
   tenantId     String?

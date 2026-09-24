@@ -16,6 +16,8 @@ export const listTenantsQuerySchema = paginationSchema.extend({
   search: z.string().trim().max(120).optional(),
   plan: planSchema.optional(),
   status: tenantStatusSchema.optional(),
+  /** A module the business has, or `none`: businesses without optional modules. */
+  module: z.enum(['sales', 'inventory', 'none']).optional(),
   sortBy: z
     .enum([
       'name',
@@ -55,6 +57,8 @@ export const createTenantSchema = z.object({
     .optional()
     .transform((value) => (value ? value : undefined)),
   plan: planSchema.default('free'),
+  /** Optional modules enabled from the start (e.g. the ones the access request asked for). */
+  modules: tenantModulesSchema.transform((modules) => [...new Set(modules)]).default([]),
   admin: z.object({ name: z.string().trim().min(2).max(120), email: emailSchema }),
   /** Access request this business comes from; it is marked as converted. */
   accessRequestId: z.uuid('Invalid identifier').optional(),

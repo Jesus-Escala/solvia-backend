@@ -89,6 +89,8 @@ platformRouter.get('/auth/me', platformController.me);
  *     description: >
  *       With any of `from`, `to` or `granularity` (same rules as `/dashboard/analytics`), the
  *       response also includes `period`, `periodTotals` and `periodSeries`.
+ *       `modules` counts active businesses with each optional module and without any
+ *       (`none`: businesses to offer them to).
  *     parameters:
  *       - { in: query, name: from, schema: { type: string, format: date } }
  *       - { in: query, name: to, schema: { type: string, format: date } }
@@ -114,6 +116,7 @@ platformRouter.get('/overview', platformController.overview);
  *       - { in: query, name: search, schema: { type: string }, description: Tenant name or any user email }
  *       - { in: query, name: plan, schema: { type: string, enum: [free, starter, pro] } }
  *       - { in: query, name: status, schema: { type: string, enum: [active, suspended] } }
+ *       - { in: query, name: module, schema: { type: string, enum: [sales, inventory, none] }, description: 'Businesses with that module, or none: without optional modules' }
  *       - in: query
  *         name: sortBy
  *         schema: { type: string, enum: [name, createdAt, outstanding, customers, users], default: createdAt }
@@ -162,6 +165,7 @@ platformRouter.get('/tenants', platformController.listTenants);
  *                   name: { type: string, example: Julia Condori }
  *                   email: { type: string, format: email, example: julia@boticasantarosa.pe }
  *               accessRequestId: { type: string, format: uuid }
+ *               modules: { type: array, items: { type: string, enum: [sales, inventory] }, description: Optional modules enabled from the start }
  *     responses:
  *       201:
  *         description: Tenant created

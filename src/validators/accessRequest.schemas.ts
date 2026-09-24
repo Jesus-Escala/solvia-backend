@@ -21,6 +21,12 @@ export const createAccessRequestSchema = z.object({
     .regex(/^[\d\s+-]{6,20}$/, 'Phone must be 6 to 20 characters: digits, spaces, + or -'),
   industry: optionalText(80),
   message: optionalText(1000),
+  /** Optional modules the business would like to add (sales, inventory). */
+  modules: z
+    .array(z.enum(['sales', 'inventory']))
+    .max(4)
+    .default([])
+    .transform((modules) => [...new Set(modules)]),
 });
 
 export const accessRequestStatusSchema = z.enum(['pending', 'converted', 'dismissed']);

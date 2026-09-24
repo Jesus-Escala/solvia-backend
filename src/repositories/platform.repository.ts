@@ -12,6 +12,7 @@ export interface TenantFilters {
   search?: string;
   plan?: TenantPlan;
   status?: TenantStatus;
+  module?: TenantModule | 'none';
 }
 
 export type TenantOrderField = 'name' | 'plan' | 'status' | 'createdAt' | 'users' | 'customers';
@@ -24,6 +25,8 @@ function buildWhere(filters: TenantFilters): Prisma.TenantWhereInput {
   const where: Prisma.TenantWhereInput = {};
   if (filters.plan) where.plan = filters.plan;
   if (filters.status) where.status = filters.status;
+  if (filters.module === 'none') where.modules = { isEmpty: true };
+  else if (filters.module) where.modules = { has: filters.module };
   if (filters.search) {
     where.OR = [
       { name: { contains: filters.search, mode: 'insensitive' } },
@@ -154,6 +157,17 @@ export const platformRepository = {
 
   tenantCountsByPlan() {
     return basePrisma.tenant.groupBy({ by: ['plan'], _count: { _all: true } });
+  },
+
+  /** Active businesses with each optional module, and without any (sales opportunities). */
+  async activeModuleCounts() {
+    const active = { status: 'active' as const };
+    const [sales, inventory, none] = await Promise.all([
+      basePrisma.tenant.count({ where: { ...active, modules: { has: 'sales' } } }),
+      basePrisma.tenant.count({ where: { ...active, modules: { has: 'inventory' } } }),
+      basePrisma.tenant.count({ where: { ...active, modules: { isEmpty: true } } }),
+    ]);
+    return { sales, inventory, none };
   },
 
   /** Creation timestamps of tenants created on or after `from`. */

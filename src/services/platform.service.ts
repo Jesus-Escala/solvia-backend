@@ -168,6 +168,7 @@ export const platformService = {
       tenants,
       pendingAccessRequests,
       periodData,
+      modules,
     ] = await Promise.all([
       platformRepository.tenantCountsByStatus(),
       platformRepository.tenantCountsByPlan(),
@@ -182,6 +183,7 @@ export const platformService = {
       platformRepository.tenantSummaries(),
       accessRequestService.countPending(),
       period ? periodStats(period) : null,
+      platformRepository.activeModuleCounts(),
     ]);
 
     const countByStatus = (status: 'active' | 'suspended') =>
@@ -228,6 +230,7 @@ export const platformService = {
         newTenantsThisMonth: signupSeries.at(-1)?.count ?? 0,
         pendingAccessRequests,
       },
+      modules,
       tenantsByPlan: planBreakdown(
         byPlan.map((row) => ({ plan: row.plan, count: row._count._all })),
       ),
@@ -252,7 +255,7 @@ export const platformService = {
     // Balances and activity are computed, so sorting by them needs every match.
     const inMemory = ['outstanding', 'collected', 'lastActivity'].includes(query.sortBy);
     const [tenants, total] = await platformRepository.findTenants(
-      { search: query.search, plan: query.plan, status: query.status },
+      { search: query.search, plan: query.plan, status: query.status, module: query.module },
       {
         field: inMemory ? 'createdAt' : (query.sortBy as TenantOrderField),
         dir: inMemory ? 'desc' : query.sortDir,
@@ -316,7 +319,12 @@ export const platformService = {
 
     const { temporaryPassword, passwordHash } = await newTemporaryPassword();
     const { tenant } = await tenantRepository.createWithAdmin({
-      tenant: { name: input.name, industry: input.industry ?? null, plan: input.plan },
+      tenant: {
+        name: input.name,
+        industry: input.industry ?? null,
+        plan: input.plan,
+        modules: input.modules,
+      },
       admin: {
         name: input.admin.name,
         email: input.admin.email,
