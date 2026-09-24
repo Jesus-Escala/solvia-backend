@@ -18,3 +18,16 @@ export function reportRangeSchema(today: Date) {
 }
 
 export type ReportRange = z.infer<ReturnType<typeof reportRangeSchema>>;
+
+export const REPORT_IDS = [
+  'sales-by-customer',
+  'sales-by-product',
+  'collections-by-customer',
+  'stock',
+  'shortages',
+] as const;
+export type ReportId = (typeof REPORT_IDS)[number];
+export type ExportFormat = 'xlsx' | 'pdf';
+
+export const exportParamsSchema = z.object({ report: z.enum(REPORT_IDS) });
+export const exportFormatSchema = z.object({ format: z.enum(['xlsx', 'pdf']) });

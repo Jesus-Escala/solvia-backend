@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { reportController } from '../controllers/report.controller';
+import type { ModuleRequirement } from '../domain/modules';
 import { requireModule } from '../middleware/requireModule';
+import type { ReportId } from '../validators/report.schemas';
 
 /** Tabular reports (the monthly PDF-style reports live under `/reports/monthly`). */
 export const reportRouter = Router();
@@ -59,3 +61,41 @@ reportRouter.get('/collections-by-customer', reportController.collectionsByCusto
 reportRouter.get('/sales-by-product', requireModule('sales'), reportController.salesByProduct);
 reportRouter.get('/stock', requireModule('catalog'), reportController.stock);
 reportRouter.get('/shortages', requireModule('sales'), reportController.shortages);
+
+/** Module each report needs; the collections report is always available. */
+const EXPORT_MODULES: Record<ReportId, ModuleRequirement | null> = {
+  'sales-by-customer': 'sales',
+  'sales-by-product': 'sales',
+  'collections-by-customer': null,
+  stock: 'catalog',
+  shortages: 'sales',
+};
+
+/**
+ * @openapi
+ * /reports/{report}/export:
+ *   get:
+ *     tags: [Reports]
+ *     summary: A report as an Excel (xlsx) or PDF file, in the request language
+ *     description: >
+ *       Same rows and totals as the JSON report. Sent inline (Content-Disposition inline with a
+ *       file name) so the app can preview it before downloading. Excel keeps real numbers and
+ *       dates, a frozen header and filters; the PDF is landscape A4 with the Solvia header.
+ *     parameters:
+ *       - { in: path, name: report, required: true, schema: { type: string, enum: [sales-by-customer, sales-by-product, collections-by-customer, stock, shortages] } }
+ *       - { in: query, name: format, required: true, schema: { type: string, enum: [xlsx, pdf] } }
+ *       - { $ref: '#/components/parameters/ReportFrom' }
+ *       - { $ref: '#/components/parameters/ReportTo' }
+ *     responses:
+ *       200: { description: The file }
+ *       403: { description: MODULE_NOT_ENABLED }
+ */
+reportRouter.get(
+  '/:report/export',
+  (req, res, next) => {
+    const module = EXPORT_MODULES[req.params.report as ReportId];
+    if (!module) return next();
+    return requireModule(module)(req, res, next);
+  },
+  reportController.export,
+);
