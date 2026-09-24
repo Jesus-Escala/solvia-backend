@@ -8,6 +8,7 @@ import { platformRouter } from './platform.routes';
 import { productRouter } from './product.routes';
 import { publicRouter } from './public.routes';
 import { receivableRouter } from './receivable.routes';
+import { saleRouter } from './sale.routes';
 import { settingsRouter } from './settings.routes';
 import { usersRouter } from './user.routes';
 
@@ -41,6 +42,7 @@ protectedRouter.use('/users', usersRouter);
 protectedRouter.use('/customers', customerRouter);
 protectedRouter.use('/receivables', receivableRouter);
 protectedRouter.use('/products', productRouter);
+protectedRouter.use('/sales', saleRouter);
 protectedRouter.use('/settings', settingsRouter);
 protectedRouter.use('/', dashboardRouter);
 

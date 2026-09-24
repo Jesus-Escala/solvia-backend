@@ -19,10 +19,15 @@ const DIRECT_TENANT_MODELS = new Set<string>([
   'ReminderSettings',
   'MonthlyReport',
   'Product',
+  'Sale',
+  'StockMovement',
 ]);
 
 /** Models scoped through their parent receivable. */
 const RECEIVABLE_SCOPED_MODELS = new Set<string>(['Payment', 'Notification']);
+
+/** Models scoped through their parent sale (only created nested in `sale.create`). */
+const SALE_SCOPED_MODELS = new Set<string>(['SaleItem']);
 
 const WHERE_OPERATIONS = new Set<string>([
   'findUnique',
@@ -53,6 +58,10 @@ function scopeWhere(model: string, where: Where | undefined, tenantId: string): 
   }
   if (DIRECT_TENANT_MODELS.has(model)) {
     return { ...current, tenantId };
+  }
+  if (SALE_SCOPED_MODELS.has(model)) {
+    const saleFilter = (current.sale as Where | undefined) ?? {};
+    return { ...current, sale: { ...saleFilter, tenantId } };
   }
   const receivableFilter = (current.receivable as Where | undefined) ?? {};
   return { ...current, receivable: { ...receivableFilter, tenantId } };
@@ -90,7 +99,8 @@ export const prisma = basePrisma.$extends({
       async $allOperations({ model, operation, args, query }) {
         const isDirect = DIRECT_TENANT_MODELS.has(model);
         const isReceivableScoped = RECEIVABLE_SCOPED_MODELS.has(model);
-        if (model !== 'Tenant' && !isDirect && !isReceivableScoped) {
+        const isSaleScoped = SALE_SCOPED_MODELS.has(model);
+        if (model !== 'Tenant' && !isDirect && !isReceivableScoped && !isSaleScoped) {
           return query(args);
         }
 
@@ -114,6 +124,10 @@ export const prisma = basePrisma.$extends({
             scopedArgs.data = withTenantId(scopedArgs.data, tenantId);
           } else if (operation === 'upsert') {
             scopedArgs.create = withTenantId(scopedArgs.create, tenantId);
+          }
+        } else if (isSaleScoped) {
+          if (CREATE_OPERATIONS.has(operation) || operation === 'upsert') {
+            throw new Error(`Create "${model}" rows nested in their sale`);
           }
         } else if (CREATE_OPERATIONS.has(operation)) {
           await assertReceivablesBelongToTenant(scopedArgs.data, tenantId);

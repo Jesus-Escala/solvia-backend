@@ -691,6 +691,10 @@ export const openApiSpec = swaggerJsdoc({
               properties: {
                 id: { type: 'string', format: 'uuid' },
                 active: { type: 'boolean' },
+                stock: {
+                  type: 'number',
+                  description: 'Current stock (sales take it out; can be negative)',
+                },
                 createdAt: { type: 'string', format: 'date-time' },
                 updatedAt: { type: 'string', format: 'date-time' },
               },

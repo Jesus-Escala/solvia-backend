@@ -61,6 +61,11 @@ export const productRepository = {
     return prisma.product.update({ where: { id }, data });
   },
 
+  /** Whether any sale references the product (then it can only be archived). */
+  async isUsed(id: string) {
+    return (await prisma.saleItem.count({ where: { productId: id } })) > 0;
+  },
+
   delete(id: string) {
     return prisma.product.delete({ where: { id } });
   },

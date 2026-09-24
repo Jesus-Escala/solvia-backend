@@ -18,6 +18,7 @@ export function toProductDto(product: Product) {
     price: roundMoney(toNumber(product.price)),
     cost: product.cost === null ? null : roundMoney(toNumber(product.cost)),
     trackStock: product.trackStock,
+    stock: toNumber(product.stock),
     minStock: product.minStock === null ? null : toNumber(product.minStock),
     active: product.active,
     createdAt: product.createdAt.toISOString(),
@@ -68,12 +69,16 @@ export const productService = {
     return toProductDto(await productRepository.update(id, input));
   },
 
-  /**
-   * Deletes a product. Once sales and purchases reference products, used ones will only be
-   * archivable (`active: false`) so their history stays intact.
-   */
+  /** Deletes a product never sold; used ones can only be archived so history stays intact. */
   async delete(id: string) {
     await findOrFail(id);
+    if (await productRepository.isUsed(id)) {
+      throw new AppError(
+        409,
+        'PRODUCT_IN_USE',
+        'This product is in past sales; archive it instead of deleting it',
+      );
+    }
     await productRepository.delete(id);
   },
 };
