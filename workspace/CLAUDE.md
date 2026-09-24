@@ -65,9 +65,9 @@ Demo accounts (password `Password123!`): business admin `admin@bodegasanmartin.p
   shows drift). The landing has a smaller subset.
 - **Password policy** lives in `solvia-backend/src/validators/auth.schemas.ts` and is mirrored in
   `src/ui/components/passwordRules.ts` of app and admin.
-- **Module prices** (add-ons Ventas and Inventario, reference PEN per month) are mirrored in
-  `solvia-landing/src/sections/plans.ts` (`PRICED_MODULES`, modular pricing), `GET /admin/pricing` (backend `domain/plans.ts`, used by the admin plan builder)
-  (`MODULE_PRICES`) and `solvia-app/src/components/modules/ModulesOffer.tsx`.
+- **Module prices and plan allowances** live in `solvia-backend/src/domain/plans.ts` (served to the
+  admin by `GET /admin/pricing`) and are mirrored in `solvia-landing/src/sections/plans.ts`
+  (`PRICED_MODULES`, `ALLOWANCES`) and `solvia-app/src/components/modules/ModulesOffer.tsx`.
 - **Brand/mascot** geometry (`src/ui/brand/owlGeometry.ts`) is mirrored in each frontend and in
   the PDF statement of the backend (`src/services/statement.service.ts`).
 
