@@ -22,6 +22,14 @@ import {
 } from '../validators/platform.schemas';
 import { createTeamUserSchema, updateTeamUserSchema } from '../validators/user.schemas';
 import { planService } from '../services/plan.service';
+import {
+  ANNUAL_MONTHS_PAID,
+  FREE_ALLOWANCE,
+  MESSAGE_PACK_SIZE,
+  MODULE_DISCOUNTS,
+  MODULE_PRICES,
+  PAID_ALLOWANCES,
+} from '../domain/plans';
 
 export const platformController = {
   async login(req: Request, res: Response) {
@@ -64,6 +72,17 @@ export const platformController = {
     const { packs } = addMessagePacksSchema.parse(req.body ?? {});
     await platformService.getTenant(id);
     res.status(201).json(await planService.addMessagePacks(id, packs));
+  },
+
+  pricing(_req: Request, res: Response) {
+    res.json({
+      modules: MODULE_PRICES,
+      discounts: MODULE_DISCOUNTS,
+      annualMonthsPaid: ANNUAL_MONTHS_PAID,
+      free: FREE_ALLOWANCE,
+      paid: PAID_ALLOWANCES,
+      packSize: MESSAGE_PACK_SIZE,
+    });
   },
 
   async updateTenant(req: Request, res: Response) {

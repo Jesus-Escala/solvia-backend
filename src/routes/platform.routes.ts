@@ -108,6 +108,21 @@ platformRouter.get('/overview', platformController.overview);
 
 /**
  * @openapi
+ * /admin/pricing:
+ *   get:
+ *     tags: [Platform admin]
+ *     summary: Module prices, discounts and plan allowances (the plan builder of the backoffice)
+ *     responses:
+ *       200:
+ *         description: >
+ *           `modules` (monthly price of Cobranza, Ventas, Inventario), `discounts` by number of
+ *           modules, `annualMonthsPaid`, `free` and `paid` allowances (automatic WhatsApp
+ *           messages, users, customers; null = unlimited) and `packSize`.
+ */
+platformRouter.get('/pricing', platformController.pricing);
+
+/**
+ * @openapi
  * /admin/tenants:
  *   get:
  *     tags: [Platform admin]
