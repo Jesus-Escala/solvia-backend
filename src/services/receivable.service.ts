@@ -19,7 +19,12 @@ const today = () => todayInTimezone(env.APP_TIMEZONE);
 export const receivableService = {
   async list(query: ListReceivablesQuery) {
     const [receivables, total] = await receivableRepository.findMany(query);
-    return paginate(receivables.map(toReceivableDto), total, query);
+    const rows = receivables.map(({ payments, ...receivable }) => ({
+      ...toReceivableDto(receivable),
+      /** Distinct payment methods used, most recent first. */
+      paymentMethods: [...new Set(payments.map((payment) => payment.method))],
+    }));
+    return paginate(rows, total, query);
   },
 
   async getById(id: string) {

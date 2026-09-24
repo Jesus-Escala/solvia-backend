@@ -535,6 +535,11 @@ export const openApiSpec = swaggerJsdoc({
             dueDate: { type: 'string', format: 'date' },
             status: { type: 'string', enum: ['pending', 'partial', 'paid', 'overdue'] },
             createdAt: { type: 'string', format: 'date-time' },
+            paymentMethods: {
+              type: 'array',
+              description: 'List endpoint only: distinct payment methods used, most recent first',
+              items: { type: 'string', enum: ['yape', 'plin', 'cash', 'bank_transfer'] },
+            },
           },
         },
         Payment: {

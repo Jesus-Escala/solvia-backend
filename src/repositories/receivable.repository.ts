@@ -59,7 +59,11 @@ export const receivableRepository = {
     return prisma.$transaction([
       prisma.receivable.findMany({
         where,
-        include: { customer: { select: customerSummarySelect } },
+        include: {
+          customer: { select: customerSummarySelect },
+          // Only the method of each payment: the list shows how a receivable was paid.
+          payments: { select: { method: true }, orderBy: { date: 'desc' } },
+        },
         orderBy: buildOrderBy(query),
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
