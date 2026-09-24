@@ -1,4 +1,4 @@
-import { Prisma, type TenantPlan, type TenantStatus } from '@prisma/client';
+import { Prisma, type TenantModule, type TenantPlan, type TenantStatus } from '@prisma/client';
 import { basePrisma } from '../lib/prisma';
 import { sqlLocalDay, sqlLocalDayWithin } from './sql';
 import { tenantUserSelect } from './user.repository';
@@ -81,7 +81,10 @@ export const platformRepository = {
     return basePrisma.tenant.count({ where: { id } }).then((count) => count > 0);
   },
 
-  updateTenant(id: string, data: { plan?: TenantPlan; status?: TenantStatus }) {
+  updateTenant(
+    id: string,
+    data: { plan?: TenantPlan; status?: TenantStatus; modules?: TenantModule[] },
+  ) {
     return basePrisma.tenant.update({ where: { id }, data });
   },
 

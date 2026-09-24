@@ -18,6 +18,7 @@ const DIRECT_TENANT_MODELS = new Set<string>([
   'MessageTemplate',
   'ReminderSettings',
   'MonthlyReport',
+  'Product',
 ]);
 
 /** Models scoped through their parent receivable. */

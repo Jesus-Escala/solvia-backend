@@ -125,6 +125,11 @@ export const openApiSpec = swaggerJsdoc({
             industry: { type: 'string', nullable: true },
             plan: { type: 'string', enum: ['free', 'starter', 'pro'] },
             status: { type: 'string', enum: ['active', 'suspended'] },
+            modules: {
+              type: 'array',
+              description: 'Enabled optional modules (the catalog comes with any of them)',
+              items: { type: 'string', enum: ['sales', 'inventory'] },
+            },
             createdAt: { type: 'string', format: 'date-time' },
             users: { type: 'integer' },
             customers: { type: 'integer' },
@@ -656,6 +661,41 @@ export const openApiSpec = swaggerJsdoc({
             },
             generatedAt: { type: 'string', format: 'date-time' },
           },
+        },
+        ProductInput: {
+          type: 'object',
+          required: ['name', 'price'],
+          properties: {
+            name: { type: 'string', example: 'Arroz Costeño 5 kg' },
+            code: {
+              type: 'string',
+              nullable: true,
+              description: 'Barcode or internal code, unique per business',
+            },
+            unit: {
+              type: 'string',
+              enum: ['unit', 'kg', 'liter', 'box', 'pack', 'dozen', 'meter'],
+              default: 'unit',
+            },
+            price: { type: 'number', example: 24.5 },
+            cost: { type: 'number', nullable: true, example: 21 },
+            trackStock: { type: 'boolean', default: true },
+            minStock: { type: 'number', nullable: true, description: 'Up to 3 decimals' },
+          },
+        },
+        Product: {
+          allOf: [
+            { $ref: '#/components/schemas/ProductInput' },
+            {
+              type: 'object',
+              properties: {
+                id: { type: 'string', format: 'uuid' },
+                active: { type: 'boolean' },
+                createdAt: { type: 'string', format: 'date-time' },
+                updatedAt: { type: 'string', format: 'date-time' },
+              },
+            },
+          ],
         },
         CashFlow: {
           type: 'object',

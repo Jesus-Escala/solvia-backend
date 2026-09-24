@@ -143,11 +143,11 @@ Key points:
 
 For each query on a scoped model:
 
-| Model group                                                                                                       | Reads, updates and deletes (`where`) | Creates                                                                       |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------- |
-| `User`, `Customer`, `Receivable`, `MessageTemplate`, `ReminderSettings`, `MonthlyReport` (`DIRECT_TENANT_MODELS`) | adds `tenantId = <current>`          | sets `data.tenantId = <current>`                                              |
-| `Payment`, `Notification` (`RECEIVABLE_SCOPED_MODELS`, no `tenantId` column)                                      | adds `receivable: { tenantId }`      | verifies the referenced `receivableId` belongs to the tenant, otherwise `404` |
-| `Tenant`                                                                                                          | forces `id = <current>`              | rejected (use `basePrisma`)                                                   |
+| Model group                                                                                                                  | Reads, updates and deletes (`where`) | Creates                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------- |
+| `User`, `Customer`, `Receivable`, `MessageTemplate`, `ReminderSettings`, `MonthlyReport`, `Product` (`DIRECT_TENANT_MODELS`) | adds `tenantId = <current>`          | sets `data.tenantId = <current>`                                              |
+| `Payment`, `Notification` (`RECEIVABLE_SCOPED_MODELS`, no `tenantId` column)                                                 | adds `receivable: { tenantId }`      | verifies the referenced `receivableId` belongs to the tenant, otherwise `404` |
+| `Tenant`                                                                                                                     | forces `id = <current>`              | rejected (use `basePrisma`)                                                   |
 
 If there is **no tenant context**, the query throws `Tenant context is required to query model "X"`. The system is fail-closed.
 
@@ -578,6 +578,13 @@ Response:
 
 ---
 
+### 8.10 Modules and product catalog (`modules.ts`)
+
+Solvia grows from debt collection into a small business system through **optional modules per business** (`Tenant.modules`, enum `TenantModule`): `sales` (Comercial: sales with their items, cash or on credit) and `inventory` (Logística: purchases and stock). Debt collection is always on. The **product catalog** is not a module of its own: it is available as soon as any module is enabled (`hasModule(modules, 'catalog')`). The backoffice enables them per business (`PATCH /admin/tenants/:id { modules }`, the full list); `GET /auth/me` returns them in `tenant.modules` so the frontends show only the menus of enabled modules. Routers of a module run behind `requireModule(...)`, which answers `403 MODULE_NOT_ENABLED`.
+
+- **Products** (`/products`): name, optional code (barcode or internal, unique per business: `409 PRODUCT_CODE_TAKEN`), unit (`ProductUnit`), sale price, optional cost, `trackStock` (false for services or items not counted) and optional `minStock` (3 decimals). `active: false` archives a product (hidden from pickers, kept for history); only admins delete. Partial updates never reset omitted fields (the update schema has no defaults).
+- **Roadmap** (decided with the product owner): sales first (quick sale, cash or on credit; a credit sale creates the receivable with its items and a `Receivable.saleId` link), then purchases and stock movements (a `StockMovement` ledger from which stock is derived; selling without stock is allowed with a warning). Receipts (boletas) are **recorded**, not issued: electronic issuing through a SUNAT provider is a later project.
+
 ## 9. Main flows
 
 ### 9.1 Register a payment
@@ -701,6 +708,8 @@ Domain codes currently thrown by services and middleware:
 | `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `BAD_REQUEST`, `UNPROCESSABLE_ENTITY` | 401, 403, 404, 409, 400, 422 | `AppError` helpers                                                      |
 | `INVALID_CREDENTIALS`                                                                       | 401                          | tenant and platform login; wrong current password on change-password    |
 | `EMAIL_TAKEN`                                                                               | 409                          | register, create user, create tenant                                    |
+| `MODULE_NOT_ENABLED`                                                                        | 403                          | any route of a module the business does not have (e.g. `/products`)     |
+| `PRODUCT_CODE_TAKEN`                                                                        | 409                          | create / update product with a code already used in the business        |
 | `TENANT_SUSPENDED`                                                                          | 403                          | login, refresh, Google sign-in, change-password                         |
 | `USER_DISABLED`                                                                             | 403                          | login, refresh, Google sign-in, change-password (`User.active = false`) |
 | `SIGNUP_DISABLED`                                                                           | 403                          | `POST /auth/register` when `SELF_SIGNUP_ENABLED=false`                  |

@@ -1,0 +1,62 @@
+import { ProductUnit } from '@prisma/client';
+import { z } from 'zod';
+import { moneySchema, paginationSchema, sortDirSchema } from './common.schemas';
+
+/** Zero or positive amount with at most 2 decimals (a product may cost nothing to the business). */
+const optionalMoneySchema = z.coerce
+  .number('Expected a number')
+  .min(0)
+  .max(9_999_999_999.99)
+  .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6, {
+    message: 'Amount must have at most 2 decimals',
+  });
+
+/** Quantity with up to 3 decimals (kilos, liters…). */
+const quantitySchema = z.coerce
+  .number('Expected a number')
+  .min(0)
+  .max(99_999_999)
+  .refine((value) => Math.abs(value * 1000 - Math.round(value * 1000)) < 1e-6, {
+    message: 'Quantity must have at most 3 decimals',
+  });
+
+const optionalCode = z
+  .string()
+  .trim()
+  .max(40)
+  .transform((value) => (value === '' ? null : value))
+  .nullish();
+
+const productFields = z.object({
+  name: z.string().trim().min(2).max(120),
+  code: optionalCode,
+  unit: z.enum(ProductUnit),
+  price: moneySchema,
+  cost: optionalMoneySchema.nullish(),
+  trackStock: z.boolean(),
+  minStock: quantitySchema.nullish(),
+});
+
+export const createProductSchema = productFields.extend({
+  unit: productFields.shape.unit.default('unit'),
+  trackStock: productFields.shape.trackStock.default(true),
+});
+
+// No defaults here: a partial update must not reset fields it does not mention.
+export const updateProductSchema = productFields
+  .partial()
+  .extend({ active: z.boolean().optional() })
+  .refine((value) => Object.keys(value).length > 0, 'At least one field is required');
+
+export const listProductsQuerySchema = paginationSchema.extend({
+  /** Matches the name or the code (case-insensitive). */
+  search: z.string().trim().max(120).optional(),
+  /** `active` (default) hides archived products; `archived` shows only those; `all` both. */
+  status: z.enum(['active', 'archived', 'all']).default('active'),
+  sortBy: z.enum(['name', 'code', 'price', 'cost', 'createdAt']).default('name'),
+  sortDir: sortDirSchema,
+});
+
+export type CreateProductInput = z.infer<typeof createProductSchema>;
+export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+export type ListProductsQuery = z.infer<typeof listProductsQuerySchema>;

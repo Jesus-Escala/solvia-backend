@@ -130,6 +130,7 @@ function toTenantRow(tenant: TenantWithCounts, stats: ActivityStats) {
     industry: tenant.industry,
     plan: tenant.plan,
     status: tenant.status,
+    modules: tenant.modules,
     createdAt: tenant.createdAt.toISOString(),
     users: tenant._count.users,
     customers: tenant._count.customers,

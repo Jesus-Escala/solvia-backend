@@ -9,6 +9,7 @@ export {
 
 const planSchema = z.enum(['free', 'starter', 'pro']);
 const tenantStatusSchema = z.enum(['active', 'suspended']);
+const tenantModulesSchema = z.array(z.enum(['sales', 'inventory'])).max(2);
 
 export const listTenantsQuerySchema = paginationSchema.extend({
   /** Matches the tenant name or the email of any of its users (case-insensitive). */
@@ -32,10 +33,17 @@ export const listTenantsQuerySchema = paginationSchema.extend({
 });
 
 export const updateTenantSchema = z
-  .object({ plan: planSchema.optional(), status: tenantStatusSchema.optional() })
-  .refine((value) => value.plan !== undefined || value.status !== undefined, {
-    message: 'At least one of plan or status is required',
-  });
+  .object({
+    plan: planSchema.optional(),
+    status: tenantStatusSchema.optional(),
+    /** Full list of enabled optional modules (replaces the current one; duplicates removed). */
+    modules: tenantModulesSchema.transform((modules) => [...new Set(modules)]).optional(),
+  })
+  .refine(
+    (value) =>
+      value.plan !== undefined || value.status !== undefined || value.modules !== undefined,
+    { message: 'At least one of plan, status or modules is required' },
+  );
 
 /** Business created by the platform admin (managed onboarding) with its first admin user. */
 export const createTenantSchema = z.object({

@@ -195,7 +195,7 @@ platformRouter.post('/tenants', platformController.createTenant);
  *       404: { $ref: '#/components/responses/NotFound' }
  *   patch:
  *     tags: [Platform admin]
- *     summary: Change a tenant's plan or suspend / reactivate it
+ *     summary: Change a tenant's plan or modules, or suspend / reactivate it
  *     description: Users of a suspended tenant cannot log in or refresh their session (403 TENANT_SUSPENDED).
  *     requestBody:
  *       required: true
@@ -207,6 +207,10 @@ platformRouter.post('/tenants', platformController.createTenant);
  *             properties:
  *               plan: { type: string, enum: [free, starter, pro] }
  *               status: { type: string, enum: [active, suspended] }
+ *               modules:
+ *                 type: array
+ *                 description: Full list of enabled optional modules (replaces the current one)
+ *                 items: { type: string, enum: [sales, inventory] }
  *     responses:
  *       200:
  *         description: Updated tenant detail

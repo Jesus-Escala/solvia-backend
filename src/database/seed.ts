@@ -1,4 +1,10 @@
-import type { AccessRequestStatus, PaymentMethod, TenantPlan } from '@prisma/client';
+import type {
+  AccessRequestStatus,
+  PaymentMethod,
+  ProductUnit,
+  TenantModule,
+  TenantPlan,
+} from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { env } from '../config/env';
 import { deriveReceivableStatus } from '../domain/receivableStatus';
@@ -29,6 +35,17 @@ interface TenantSeed {
   name: string;
   industry: string;
   plan: TenantPlan;
+  /** Optional modules enabled for the demo (the catalog comes with any of them). */
+  modules?: TenantModule[];
+  products?: Array<{
+    name: string;
+    code?: string;
+    unit?: ProductUnit;
+    price: number;
+    cost?: number;
+    trackStock?: boolean;
+    minStock?: number;
+  }>;
   domain: string;
   adminName: string;
   collectorName: string;
@@ -47,6 +64,29 @@ const TENANTS: TenantSeed[] = [
     industry: 'Bodega o minimarket',
     plan: 'starter',
     domain: 'bodegasanmartin.pe',
+    modules: ['sales', 'inventory'],
+    products: [
+      { name: 'Arroz Costeño 5 kg', code: '7750243000011', price: 24.5, cost: 21, minStock: 5 },
+      { name: 'Aceite Primor 1 L', code: '7751271000152', price: 11.9, cost: 10.2, minStock: 6 },
+      { name: 'Azúcar rubia', unit: 'kg', price: 4.2, cost: 3.6, minStock: 10 },
+      {
+        name: 'Gaseosa Inca Kola 1.5 L',
+        code: '7750182002271',
+        price: 6.5,
+        cost: 5.3,
+        minStock: 12,
+      },
+      { name: 'Leche Gloria tarro', code: '7751271011462', price: 4.6, cost: 4, minStock: 24 },
+      { name: 'Huevos', unit: 'kg', price: 8.5, cost: 7.2, minStock: 5 },
+      { name: 'Pan francés', price: 0.3, trackStock: false },
+      {
+        name: 'Detergente Bolívar 1 kg',
+        code: '7750068000119',
+        price: 13.9,
+        cost: 11.8,
+        minStock: 4,
+      },
+    ],
     adminName: 'Rosa Huaman',
     collectorName: 'Carlos Rojas',
     customers: [
@@ -336,6 +376,14 @@ async function seedTenant(
       mustChangePassword: false,
     },
   });
+  if (seed.modules?.length) {
+    await basePrisma.tenant.update({ where: { id: tenant.id }, data: { modules: seed.modules } });
+  }
+  if (seed.products?.length) {
+    await basePrisma.product.createMany({
+      data: seed.products.map((product) => ({ ...product, tenantId: tenant.id })),
+    });
+  }
   await basePrisma.user.create({
     data: {
       tenantId: tenant.id,

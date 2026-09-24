@@ -20,6 +20,9 @@ const pg = new EmbeddedPostgres({
   password: 'solvia',
   port,
   persistent: true,
+  // UTF-8 whatever the OS locale (on Windows it would default to WIN1252, which rejects emoji
+  // and other characters outside that code page).
+  initdbFlags: ['--encoding=UTF8', '--locale=C'],
 });
 
 const firstRun = !existsSync(databaseDir);

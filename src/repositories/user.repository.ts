@@ -76,7 +76,7 @@ export const userRepository = {
         role: true,
         mustChangePassword: true,
         createdAt: true,
-        tenant: { select: { id: true, name: true, industry: true, plan: true } },
+        tenant: { select: { id: true, name: true, industry: true, plan: true, modules: true } },
       },
     });
   },

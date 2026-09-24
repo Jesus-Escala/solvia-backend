@@ -5,6 +5,7 @@ import { authRouter } from './auth.routes';
 import { customerRouter } from './customer.routes';
 import { dashboardRouter } from './dashboard.routes';
 import { platformRouter } from './platform.routes';
+import { productRouter } from './product.routes';
 import { publicRouter } from './public.routes';
 import { receivableRouter } from './receivable.routes';
 import { settingsRouter } from './settings.routes';
@@ -39,6 +40,7 @@ protectedRouter.use(authenticate, tenantScope);
 protectedRouter.use('/users', usersRouter);
 protectedRouter.use('/customers', customerRouter);
 protectedRouter.use('/receivables', receivableRouter);
+protectedRouter.use('/products', productRouter);
 protectedRouter.use('/settings', settingsRouter);
 protectedRouter.use('/', dashboardRouter);
 
