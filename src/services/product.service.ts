@@ -1,8 +1,12 @@
 import type { Product } from '@prisma/client';
+import { adjustmentDelta } from '../domain/inventory';
 import { AppError } from '../errors/AppError';
 import { roundMoney, toNumber } from '../lib/money';
+import { prisma } from '../lib/prisma';
+import { requireTenantId } from '../lib/tenantContext';
 import { productRepository } from '../repositories/product.repository';
 import { paginate, type Pagination } from '../validators/common.schemas';
+import type { AdjustStockInput } from '../validators/inventory.schemas';
 import type {
   CreateProductInput,
   ListProductsQuery,
@@ -44,10 +48,11 @@ async function findOrFail(id: string) {
 
 export const productService = {
   async list(query: ListProductsQuery) {
-    const { search, status, sortBy, sortDir, ...pagination } = query;
+    const { search, status, lowStock, sortBy, sortDir, ...pagination } = query;
     const [rows, total] = await productRepository.findMany({
       search,
       status,
+      lowStock,
       pagination,
       orderBy: { field: sortBy, dir: sortDir },
     });
@@ -84,12 +89,52 @@ export const productService = {
         balanceAfter: row.balanceAfter === null ? null : toNumber(row.balanceAfter),
         shortage: toNumber(row.shortage),
         sale: row.sale,
+        purchase: row.purchase,
+        reason: row.reason,
         note: row.note,
         createdAt: row.createdAt.toISOString(),
       })),
       total,
       pagination,
     );
+  },
+
+  /**
+   * Manual stock adjustment of a counted product: a physical count (the stock becomes what was
+   * counted), a loss or damage (units leave) or a signed correction. Always leaves an
+   * `adjustment` movement with its reason, note and the balance it left — even a count with no
+   * difference, which records that the stock was checked.
+   */
+  async adjust(id: string, input: AdjustStockInput, userId: string | null) {
+    return prisma.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({ where: { id } });
+      if (!product) throw AppError.notFound('Product');
+      if (!product.trackStock) {
+        throw new AppError(
+          422,
+          'PRODUCT_NOT_COUNTED',
+          'This product does not keep count of its stock',
+        );
+      }
+      const delta = adjustmentDelta(input.reason, input.quantity, toNumber(product.stock));
+      const updated =
+        delta === 0
+          ? product
+          : await tx.product.update({ where: { id }, data: { stock: { increment: delta } } });
+      await tx.stockMovement.create({
+        data: {
+          tenantId: requireTenantId(),
+          productId: id,
+          type: 'adjustment',
+          quantity: delta,
+          balanceAfter: updated.stock,
+          reason: input.reason,
+          note: input.note ?? null,
+          createdById: userId,
+        },
+      });
+      return toProductDto(updated);
+    });
   },
 
   async getById(id: string) {

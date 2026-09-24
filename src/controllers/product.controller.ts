@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
+import { getAuth } from '../middleware/tenantScope';
 import { productService } from '../services/product.service';
+import { adjustStockSchema } from '../validators/inventory.schemas';
 import { idParamSchema, lookupQuerySchema, paginationSchema } from '../validators/common.schemas';
 import {
   createProductSchema,
@@ -25,6 +27,12 @@ export const productController = {
   async movements(req: Request, res: Response) {
     const { id } = idParamSchema.parse(req.params);
     res.json(await productService.movements(id, paginationSchema.parse(req.query)));
+  },
+
+  async adjust(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    const input = adjustStockSchema.parse(req.body);
+    res.json(await productService.adjust(id, input, getAuth(req).userId));
   },
 
   async create(req: Request, res: Response) {

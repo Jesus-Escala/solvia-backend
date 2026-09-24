@@ -8,8 +8,17 @@ import { escapeLike } from './sql';
 function listFilter(options: {
   search?: string;
   status: 'active' | 'archived' | 'all';
+  lowStock?: boolean;
 }): Prisma.ProductWhereInput {
   return {
+    ...(options.lowStock && {
+      trackStock: true,
+      // Column comparison (stock ≤ minStock); without an alert level, out of stock (≤ 0).
+      OR: [
+        { stock: { lte: prisma.product.fields.minStock } },
+        { minStock: null, stock: { lte: 0 } },
+      ],
+    }),
     ...(options.status !== 'all' && { active: options.status === 'active' }),
     ...(options.search && {
       OR: [
@@ -24,6 +33,7 @@ export const productRepository = {
   findMany(options: {
     search?: string;
     status: 'active' | 'archived' | 'all';
+    lowStock?: boolean;
     pagination: Pagination;
     orderBy: { field: 'name' | 'code' | 'price' | 'cost' | 'createdAt'; dir: SortDir };
   }) {
@@ -105,7 +115,10 @@ export const productRepository = {
     return prisma.$transaction([
       prisma.stockMovement.findMany({
         where,
-        include: { sale: { select: { id: true, number: true } } },
+        include: {
+          sale: { select: { id: true, number: true } },
+          purchase: { select: { id: true, number: true } },
+        },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (pagination.page - 1) * pagination.pageSize,
         take: pagination.pageSize,

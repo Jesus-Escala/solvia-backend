@@ -53,6 +53,11 @@ export const listProductsQuerySchema = paginationSchema.extend({
   search: z.string().trim().max(120).optional(),
   /** `active` (default) hides archived products; `archived` shows only those; `all` both. */
   status: z.enum(['active', 'archived', 'all']).default('active'),
+  /** Only counted products at or below their alert level (0 when none is set). */
+  lowStock: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
   sortBy: z.enum(['name', 'code', 'price', 'cost', 'createdAt']).default('name'),
   sortDir: sortDirSchema,
 });

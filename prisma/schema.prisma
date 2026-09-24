@@ -60,7 +60,25 @@ enum StockMovementType {
   sale
   sale_void
   purchase
+  purchase_void
   adjustment
+}
+
+/// Why stock was adjusted by hand.
+enum AdjustmentReason {
+  /// Physical count: the stock is set to what was counted.
+  count
+  /// Lost, stolen or expired.
+  loss
+  /// Damaged, not sellable.
+  damage
+  /// Any other correction.
+  correction
+}
+
+enum PurchaseStatus {
+  completed
+  voided
 }
 
 /// Unit a product is sold in.
@@ -140,6 +158,8 @@ model Tenant {
   products         Product[]
   sales            Sale[]
   stockMovements   StockMovement[]
+  suppliers        Supplier[]
+  purchases        Purchase[]
 
   @@map("tenants")
 }
@@ -360,6 +380,7 @@ model Product {
 
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   saleItems      SaleItem[]
+  purchaseItems  PurchaseItem[]
   stockMovements StockMovement[]
 
   @@unique([tenantId, code])
@@ -438,13 +459,81 @@ model StockMovement {
   /// Part of the quantity that left without stock to cover it (traceability of differences).
   shortage     Decimal           @default(0) @db.Decimal(12, 3)
   saleId       String?
+  purchaseId   String?
+  /// For manual adjustments.
+  reason       AdjustmentReason?
   note         String?
+  createdById  String?
   createdAt    DateTime          @default(now())
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  sale    Sale?   @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sale     Sale?     @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, productId, createdAt])
   @@map("stock_movements")
+}
+
+/// Who the business buys from (inventory module).
+model Supplier {
+  id         String   @id @default(uuid())
+  tenantId   String
+  name       String
+  /// RUC or DNI (optional).
+  documentId String?
+  /// E.164 WhatsApp number (optional).
+  phone      String?
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchases Purchase[]
+
+  @@index([tenantId, name])
+  @@map("suppliers")
+}
+
+/// Goods bought (inventory module): counted products enter stock.
+model Purchase {
+  id          String         @id @default(uuid())
+  tenantId    String
+  /// Sequential per business ("Compra #7").
+  number      Int
+  supplierId  String?
+  date        DateTime       @db.Date
+  docType     SaleDocType    @default(none)
+  docNumber   String?
+  total       Decimal        @db.Decimal(12, 2)
+  status      PurchaseStatus @default(completed)
+  createdById String?
+  createdAt   DateTime       @default(now())
+  voidedAt    DateTime?
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier  Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  items     PurchaseItem[]
+  movements StockMovement[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, date])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id          String  @id @default(uuid())
+  purchaseId  String
+  productId   String
+  position    Int     @default(0)
+  description String
+  quantity    Decimal @db.Decimal(12, 3)
+  unitCost    Decimal @db.Decimal(12, 2)
+  subtotal    Decimal @db.Decimal(12, 2)
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([purchaseId])
+  @@index([productId])
+  @@map("purchase_items")
 }

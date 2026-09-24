@@ -4,6 +4,7 @@ import { tenantScope } from '../middleware/tenantScope';
 import { authRouter } from './auth.routes';
 import { customerRouter } from './customer.routes';
 import { dashboardRouter } from './dashboard.routes';
+import { purchaseRouter, supplierRouter } from './inventory.routes';
 import { platformRouter } from './platform.routes';
 import { productRouter } from './product.routes';
 import { publicRouter } from './public.routes';
@@ -43,6 +44,8 @@ protectedRouter.use('/customers', customerRouter);
 protectedRouter.use('/receivables', receivableRouter);
 protectedRouter.use('/products', productRouter);
 protectedRouter.use('/sales', saleRouter);
+protectedRouter.use('/suppliers', supplierRouter);
+protectedRouter.use('/purchases', purchaseRouter);
 protectedRouter.use('/settings', settingsRouter);
 protectedRouter.use('/', dashboardRouter);
 

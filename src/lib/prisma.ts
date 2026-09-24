@@ -21,13 +21,18 @@ const DIRECT_TENANT_MODELS = new Set<string>([
   'Product',
   'Sale',
   'StockMovement',
+  'Supplier',
+  'Purchase',
 ]);
 
 /** Models scoped through their parent receivable. */
 const RECEIVABLE_SCOPED_MODELS = new Set<string>(['Payment', 'Notification']);
 
-/** Models scoped through their parent sale (only created nested in `sale.create`). */
-const SALE_SCOPED_MODELS = new Set<string>(['SaleItem']);
+/** Line models scoped through their parent document (only created nested in the parent). */
+const LINE_PARENTS: Record<string, 'sale' | 'purchase'> = {
+  SaleItem: 'sale',
+  PurchaseItem: 'purchase',
+};
 
 const WHERE_OPERATIONS = new Set<string>([
   'findUnique',
@@ -59,9 +64,10 @@ function scopeWhere(model: string, where: Where | undefined, tenantId: string): 
   if (DIRECT_TENANT_MODELS.has(model)) {
     return { ...current, tenantId };
   }
-  if (SALE_SCOPED_MODELS.has(model)) {
-    const saleFilter = (current.sale as Where | undefined) ?? {};
-    return { ...current, sale: { ...saleFilter, tenantId } };
+  const parent = LINE_PARENTS[model];
+  if (parent) {
+    const parentFilter = (current[parent] as Where | undefined) ?? {};
+    return { ...current, [parent]: { ...parentFilter, tenantId } };
   }
   const receivableFilter = (current.receivable as Where | undefined) ?? {};
   return { ...current, receivable: { ...receivableFilter, tenantId } };
@@ -99,8 +105,8 @@ export const prisma = basePrisma.$extends({
       async $allOperations({ model, operation, args, query }) {
         const isDirect = DIRECT_TENANT_MODELS.has(model);
         const isReceivableScoped = RECEIVABLE_SCOPED_MODELS.has(model);
-        const isSaleScoped = SALE_SCOPED_MODELS.has(model);
-        if (model !== 'Tenant' && !isDirect && !isReceivableScoped && !isSaleScoped) {
+        const isLine = model in LINE_PARENTS;
+        if (model !== 'Tenant' && !isDirect && !isReceivableScoped && !isLine) {
           return query(args);
         }
 
@@ -125,9 +131,9 @@ export const prisma = basePrisma.$extends({
           } else if (operation === 'upsert') {
             scopedArgs.create = withTenantId(scopedArgs.create, tenantId);
           }
-        } else if (isSaleScoped) {
+        } else if (isLine) {
           if (CREATE_OPERATIONS.has(operation) || operation === 'upsert') {
-            throw new Error(`Create "${model}" rows nested in their sale`);
+            throw new Error(`Create "${model}" rows nested in their parent document`);
           }
         } else if (CREATE_OPERATIONS.has(operation)) {
           await assertReceivablesBelongToTenant(scopedArgs.data, tenantId);

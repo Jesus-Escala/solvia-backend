@@ -17,6 +17,7 @@ productRouter.use(requireModule('catalog'));
  *     parameters:
  *       - { in: query, name: search, schema: { type: string }, description: Name or code }
  *       - { in: query, name: status, schema: { type: string, enum: [active, archived, all], default: active } }
+ *       - { in: query, name: lowStock, schema: { type: string, enum: ['true'] }, description: Counted products at or below their alert level }
  *       - { in: query, name: sortBy, schema: { type: string, enum: [name, code, price, cost, createdAt], default: name } }
  *       - { in: query, name: sortDir, schema: { type: string, enum: [asc, desc], default: asc } }
  *       - { $ref: '#/components/parameters/Page' }
@@ -50,6 +51,30 @@ productRouter.use(requireModule('catalog'));
  *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 20, default: 8 } }
  *     responses:
  *       200: { description: '{ data: [{ id, name, code, unit, price, trackStock, stock, minStock }] }' }
+ * /products/{id}/adjust:
+ *   post:
+ *     tags: [Catalog]
+ *     summary: Adjust the stock of a counted product (inventory module)
+ *     description: >
+ *       reason count - quantity is the stock counted (the change is counted minus current);
+ *       loss / damage - quantity units leave; correction - quantity is the signed change.
+ *       Always records an adjustment movement with the reason, note and balance.
+ *     parameters:
+ *       - { $ref: '#/components/parameters/Id' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reason, quantity]
+ *             properties:
+ *               reason: { type: string, enum: [count, loss, damage, correction] }
+ *               quantity: { type: number }
+ *               note: { type: string, nullable: true }
+ *     responses:
+ *       200: { description: Product with its new stock }
+ *       422: { description: PRODUCT_NOT_COUNTED }
  * /products/{id}/movements:
  *   get:
  *     tags: [Catalog]
@@ -109,5 +134,6 @@ productRouter.post('/', productController.create);
 productRouter.get('/lookup', productController.lookup);
 productRouter.get('/:id', productController.get);
 productRouter.get('/:id/movements', productController.movements);
+productRouter.post('/:id/adjust', requireModule('inventory'), productController.adjust);
 productRouter.patch('/:id', productController.update);
 productRouter.delete('/:id', requireRole('admin'), productController.remove);

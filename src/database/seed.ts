@@ -45,6 +45,8 @@ interface TenantSeed {
     cost?: number;
     trackStock?: boolean;
     minStock?: number;
+    /** Units bought in the demo's opening purchase (counted products only). */
+    opening?: number;
   }>;
   domain: string;
   adminName: string;
@@ -66,18 +68,40 @@ const TENANTS: TenantSeed[] = [
     domain: 'bodegasanmartin.pe',
     modules: ['sales', 'inventory'],
     products: [
-      { name: 'Arroz Costeño 5 kg', code: '7750243000011', price: 24.5, cost: 21, minStock: 5 },
-      { name: 'Aceite Primor 1 L', code: '7751271000152', price: 11.9, cost: 10.2, minStock: 6 },
-      { name: 'Azúcar rubia', unit: 'kg', price: 4.2, cost: 3.6, minStock: 10 },
+      {
+        name: 'Arroz Costeño 5 kg',
+        code: '7750243000011',
+        price: 24.5,
+        cost: 21,
+        minStock: 5,
+        opening: 12,
+      },
+      {
+        name: 'Aceite Primor 1 L',
+        code: '7751271000152',
+        price: 11.9,
+        cost: 10.2,
+        minStock: 6,
+        opening: 8,
+      },
+      { name: 'Azúcar rubia', unit: 'kg', price: 4.2, cost: 3.6, minStock: 10, opening: 25 },
       {
         name: 'Gaseosa Inca Kola 1.5 L',
         code: '7750182002271',
         price: 6.5,
         cost: 5.3,
         minStock: 12,
+        opening: 18,
       },
-      { name: 'Leche Gloria tarro', code: '7751271011462', price: 4.6, cost: 4, minStock: 24 },
-      { name: 'Huevos', unit: 'kg', price: 8.5, cost: 7.2, minStock: 5 },
+      {
+        name: 'Leche Gloria tarro',
+        code: '7751271011462',
+        price: 4.6,
+        cost: 4,
+        minStock: 24,
+        opening: 30,
+      },
+      { name: 'Huevos', unit: 'kg', price: 8.5, cost: 7.2, minStock: 5, opening: 6 },
       { name: 'Pan francés', price: 0.3, trackStock: false },
       {
         name: 'Detergente Bolívar 1 kg',
@@ -85,6 +109,7 @@ const TENANTS: TenantSeed[] = [
         price: 13.9,
         cost: 11.8,
         minStock: 4,
+        opening: 3,
       },
     ],
     adminName: 'Rosa Huaman',
@@ -361,6 +386,62 @@ function plansFor(profile: Profile, base: number): ReceivablePlan[] {
   }
 }
 
+/**
+ * Demo stock: one supplier and an opening purchase that brings each counted product to its
+ * `opening` quantity, with the purchase movements a real one leaves (so the kardex reads well).
+ */
+async function seedOpeningPurchase(
+  tenantId: string,
+  products: NonNullable<TenantSeed['products']>,
+  today: Date,
+) {
+  const supplier = await basePrisma.supplier.create({
+    data: { tenantId, name: 'Distribuidora Lima Norte', documentId: '20601234567' },
+  });
+  const rows = await basePrisma.product.findMany({ where: { tenantId } });
+  const lines = products
+    .filter((product) => product.opening && product.cost !== undefined)
+    .map((product, position) => {
+      const row = rows.find((candidate) => candidate.name === product.name)!;
+      return {
+        productId: row.id,
+        position,
+        description: product.name,
+        quantity: product.opening!,
+        unitCost: product.cost!,
+        subtotal: roundMoney(product.opening! * product.cost!),
+      };
+    });
+  const purchase = await basePrisma.purchase.create({
+    data: {
+      tenantId,
+      number: 1,
+      supplierId: supplier.id,
+      date: addDays(today, -7),
+      docType: 'invoice',
+      docNumber: 'F001-004512',
+      total: roundMoney(lines.reduce((sum, line) => sum + line.subtotal, 0)),
+      items: { create: lines },
+    },
+  });
+  for (const line of lines) {
+    await basePrisma.product.update({
+      where: { id: line.productId },
+      data: { stock: line.quantity },
+    });
+    await basePrisma.stockMovement.create({
+      data: {
+        tenantId,
+        productId: line.productId,
+        type: 'purchase',
+        quantity: line.quantity,
+        balanceAfter: line.quantity,
+        purchaseId: purchase.id,
+      },
+    });
+  }
+}
+
 async function seedTenant(
   seed: TenantSeed,
   tenantIndex: number,
@@ -381,8 +462,12 @@ async function seedTenant(
   }
   if (seed.products?.length) {
     await basePrisma.product.createMany({
-      data: seed.products.map((product) => ({ ...product, tenantId: tenant.id })),
+      data: seed.products.map(({ opening: _opening, ...product }) => ({
+        ...product,
+        tenantId: tenant.id,
+      })),
     });
+    await seedOpeningPurchase(tenant.id, seed.products, today);
   }
   await basePrisma.user.create({
     data: {
