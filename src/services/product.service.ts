@@ -68,6 +68,7 @@ export const productService = {
       code: row.code,
       unit: row.unit,
       price: roundMoney(toNumber(row.price)),
+      cost: row.cost === null ? null : roundMoney(toNumber(row.cost)),
       trackStock: row.trackStock,
       stock: toNumber(row.stock),
       minStock: row.minStock === null ? null : toNumber(row.minStock),

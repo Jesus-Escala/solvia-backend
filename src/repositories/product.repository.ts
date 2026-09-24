@@ -76,12 +76,13 @@ export const productRepository = {
         code: string | null;
         unit: ProductUnit;
         price: Prisma.Decimal;
+        cost: Prisma.Decimal | null;
         trackStock: boolean;
         stock: Prisma.Decimal;
         minStock: Prisma.Decimal | null;
       }>
     >`
-      SELECT p."id", p."name", p."code", p."unit", p."price", p."trackStock", p."stock",
+      SELECT p."id", p."name", p."code", p."unit", p."price", p."cost", p."trackStock", p."stock",
              p."minStock"
       FROM "products" p
       WHERE p."tenantId" = ${tenantId}

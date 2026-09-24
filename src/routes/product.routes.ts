@@ -50,7 +50,7 @@ productRouter.use(requireModule('catalog'));
  *       - { in: query, name: search, schema: { type: string } }
  *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 20, default: 8 } }
  *     responses:
- *       200: { description: '{ data: [{ id, name, code, unit, price, trackStock, stock, minStock }] }' }
+ *       200: { description: '{ data: [{ id, name, code, unit, price, cost, trackStock, stock, minStock }] }' }
  * /products/{id}/adjust:
  *   post:
  *     tags: [Catalog]
