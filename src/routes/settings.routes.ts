@@ -75,5 +75,19 @@ settingsRouter.post(
  *     responses:
  *       200: { description: Rules updated }
  */
+/**
+ * @openapi
+ * /settings/plan:
+ *   get:
+ *     tags: [Settings]
+ *     summary: What the plan includes and what the business used this month
+ *     responses:
+ *       200:
+ *         description: >
+ *           Allowance and use of the current month: `automaticMessages` (used, included by the
+ *           plan, extra packs, limit, left), `users` and `customers` (used, limit; null =
+ *           unlimited). Manual reminders from the owner's WhatsApp are never counted.
+ */
+settingsRouter.get('/plan', settingsController.planUsage);
 settingsRouter.get('/reminders', settingsController.getReminderRules);
 settingsRouter.put('/reminders', requireRole('admin'), settingsController.updateReminderRules);

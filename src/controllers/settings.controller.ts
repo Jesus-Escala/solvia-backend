@@ -5,6 +5,7 @@ import {
   templateTypeParamSchema,
   updateTemplateSchema,
 } from '../validators/settings.schemas';
+import { planService } from '../services/plan.service';
 
 export const settingsController = {
   async listTemplates(_req: Request, res: Response) {
@@ -20,6 +21,10 @@ export const settingsController = {
   async resetTemplate(req: Request, res: Response) {
     const { type } = templateTypeParamSchema.parse(req.params);
     res.json(await settingsService.resetTemplate(type));
+  },
+
+  async planUsage(_req: Request, res: Response) {
+    res.json(await planService.usage());
   },
 
   async getReminderRules(_req: Request, res: Response) {

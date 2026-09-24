@@ -20,6 +20,7 @@ import { receivableService } from './receivable.service';
 import { whatsAppChatUrl } from '../lib/whatsapp';
 import { whatsAppProvider } from '../providers/whatsapp';
 import { settingsService } from './settings.service';
+import { planService } from './plan.service';
 
 const REMINDER_TYPES: ReminderType[] = ['pre_due_reminder', 'due_reminder', 'overdue_reminder'];
 
@@ -30,6 +31,8 @@ export interface ReminderRunSummary {
   evaluated: number;
   sent: number;
   failed: number;
+  /** Reminders not sent because the month's automatic messages are used up. */
+  limited: number;
 }
 
 async function buildVariables(
@@ -71,6 +74,7 @@ async function send(
   receivable: ReminderReceivable,
   decision: ReminderDecision,
   context: { businessName: string; templates: Record<MessageTemplateType, string> },
+  options: { automatic: boolean; quotaChecked?: boolean },
 ) {
   return notificationService.sendWhatsApp({
     receivableId: receivable.id,
@@ -78,6 +82,7 @@ async function send(
     templateType: decision.type,
     templateText: context.templates[decision.type],
     variables: await buildVariables(receivable, decision, context.businessName),
+    ...options,
   });
 }
 
@@ -93,6 +98,7 @@ export const reminderService = {
       evaluated: 0,
       sent: 0,
       failed: 0,
+      limited: 0,
     };
 
     const rules = await settingsService.getReminderRules();
@@ -120,6 +126,8 @@ export const reminderService = {
       settingsService.getTemplateTexts(),
     ]);
     const context = { businessName: tenant?.name ?? 'Solvia', templates };
+    // The job sends automatic messages: it stops at the plan's monthly quota.
+    let left = await planService.automaticMessagesLeft();
 
     for (const receivable of candidates) {
       summary.evaluated += 1;
@@ -134,10 +142,19 @@ export const reminderService = {
         today,
       );
       if (!decision) continue;
+      if (left <= 0) {
+        summary.limited += 1;
+        continue;
+      }
 
-      const notification = await send(receivable, decision, context);
-      if (notification.status === 'sent') summary.sent += 1;
-      else summary.failed += 1;
+      const notification = await send(receivable, decision, context, {
+        automatic: true,
+        quotaChecked: true,
+      });
+      if (notification.status === 'sent') {
+        summary.sent += 1;
+        left -= 1;
+      } else summary.failed += 1;
     }
 
     return summary;
@@ -167,14 +184,17 @@ export const reminderService = {
       tenantRepository.findCurrent(),
       settingsService.getTemplateTexts(),
     ]);
-    const notification = await send(receivable, decision, {
-      businessName: tenant?.name ?? 'Solvia',
-      templates,
-    });
-    // Without a real provider nothing reaches the customer: like the statement, hand back a
-    // click-to-chat link with the same message so the user can send it from their WhatsApp.
+    // With a real provider Solvia sends it (an automatic message); without one, or once the
+    // month's automatic messages are used up, the user sends it from their own WhatsApp.
+    const automatic = whatsAppProvider.name !== 'mock';
+    const notification = await send(
+      receivable,
+      decision,
+      { businessName: tenant?.name ?? 'Solvia', templates },
+      { automatic },
+    );
     const whatsappUrl =
-      whatsAppProvider.name === 'mock'
+      !automatic || notification.limitReached
         ? whatsAppChatUrl(receivable.customer.phone, notification.sentContent)
         : undefined;
     return { ...notification, whatsappUrl };

@@ -23,6 +23,7 @@ const DIRECT_TENANT_MODELS = new Set<string>([
   'StockMovement',
   'Supplier',
   'Purchase',
+  'MessagePack',
 ]);
 
 /** Models scoped through their parent receivable. */

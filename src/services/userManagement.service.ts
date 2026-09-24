@@ -10,6 +10,7 @@ import { AppError } from '../errors/AppError';
 import { userRepository } from '../repositories/user.repository';
 import type { CreateTeamUserInput, UpdateTeamUserInput } from '../validators/user.schemas';
 import { toTenantUserDto } from './dto';
+import { planService } from './plan.service';
 
 const VIOLATION_MESSAGES: Record<UserChangeViolation, string> = {
   CANNOT_MODIFY_SELF: 'You cannot change your own role or deactivate yourself',
@@ -51,6 +52,7 @@ export const userManagementService = {
 
   async create(input: CreateTeamUserInput) {
     if (await userRepository.emailExists(input.email)) throw emailTaken();
+    await planService.assertCanAddUser();
     const { temporaryPassword, passwordHash } = await newTemporaryPassword();
     const user = await userRepository.create({
       name: input.name,
@@ -68,6 +70,8 @@ export const userManagementService = {
     const activeAdmins = await userRepository.countActiveAdmins();
     const problem = checkUserChange({ actorId, target, changes: input, activeAdmins });
     if (problem) throw violation(problem);
+    // Reactivating someone takes a seat of the plan again.
+    if (input.active === true && !target.active) await planService.assertCanAddUser();
 
     return toTenantUserDto(await userRepository.update(id, input));
   },

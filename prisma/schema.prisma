@@ -160,8 +160,24 @@ model Tenant {
   stockMovements   StockMovement[]
   suppliers        Supplier[]
   purchases        Purchase[]
+  messagePacks     MessagePack[]
 
   @@map("tenants")
+}
+
+/// Extra automatic WhatsApp messages for one calendar month of a tenant (bought as packs).
+model MessagePack {
+  id        String   @id @default(uuid())
+  tenantId  String
+  /// First day of the month the messages are for (APP_TIMEZONE calendar).
+  month     DateTime @db.Date
+  messages  Int
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, month])
+  @@map("message_packs")
 }
 
 model User {
@@ -279,6 +295,9 @@ model Notification {
   /// Template that produced the message; used to avoid duplicate reminders.
   templateType MessageTemplateType?
   status       NotificationStatus
+  /// Sent by Solvia through the provider (counts against the plan's monthly messages). Manual
+  /// reminders, sent from the owner's own WhatsApp, are false.
+  automatic    Boolean              @default(false)
   sentAt       DateTime             @default(now())
   sentContent  String
 

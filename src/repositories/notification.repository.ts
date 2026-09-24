@@ -7,6 +7,8 @@ export interface NotificationCreateData {
   templateType: MessageTemplateType | null;
   status: NotificationStatus;
   sentContent: string;
+  /** Sent by Solvia through the provider (counts against the plan). */
+  automatic?: boolean;
 }
 
 export interface NotificationOrder {

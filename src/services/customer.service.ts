@@ -10,6 +10,7 @@ import type {
 } from '../validators/customer.schemas';
 import { toCustomerDto, toPaymentDto, toReceivableDto } from './dto';
 import { riskScoreFor } from './risk.service';
+import { planService } from './plan.service';
 
 type ReceivableBalanceRow = {
   totalAmount: Parameters<typeof toNumber>[0];
@@ -131,6 +132,7 @@ export const customerService = {
   },
 
   async create(input: CreateCustomerInput) {
+    await planService.assertCanAddCustomer();
     return toCustomerDto(await customerRepository.create(input));
   },
 

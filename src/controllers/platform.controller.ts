@@ -12,6 +12,7 @@ import {
 import { optionalPeriodQuerySchema } from '../validators/analytics.schemas';
 import { idParamSchema } from '../validators/common.schemas';
 import {
+  addMessagePacksSchema,
   createTenantSchema,
   listTenantsQuerySchema,
   platformLoginSchema,
@@ -20,6 +21,7 @@ import {
   updateTenantSchema,
 } from '../validators/platform.schemas';
 import { createTeamUserSchema, updateTeamUserSchema } from '../validators/user.schemas';
+import { planService } from '../services/plan.service';
 
 export const platformController = {
   async login(req: Request, res: Response) {
@@ -49,6 +51,19 @@ export const platformController = {
   async getTenant(req: Request, res: Response) {
     const { id } = idParamSchema.parse(req.params);
     res.json(await platformService.getTenant(id));
+  },
+
+  async tenantUsage(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    await platformService.getTenant(id);
+    res.json(await planService.usageOf(id));
+  },
+
+  async addMessagePacks(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    const { packs } = addMessagePacksSchema.parse(req.body ?? {});
+    await platformService.getTenant(id);
+    res.status(201).json(await planService.addMessagePacks(id, packs));
   },
 
   async updateTenant(req: Request, res: Response) {

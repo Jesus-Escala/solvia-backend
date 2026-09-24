@@ -229,6 +229,34 @@ platformRouter.patch('/tenants/:id', platformController.updateTenant);
 
 /**
  * @openapi
+ * /admin/tenants/{id}/usage:
+ *   get:
+ *     tags: [Platform admin]
+ *     summary: Plan allowance and use of the current month of a tenant
+ *     parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+ *     responses:
+ *       200:
+ *         description: >
+ *           Allowance and use of the current month: `automaticMessages` (used, included by the
+ *           plan, extra packs, limit, left), `users` and `customers` (used, limit; null =
+ *           unlimited). Manual reminders from the owner's WhatsApp are never counted.
+ * /admin/tenants/{id}/message-packs:
+ *   post:
+ *     tags: [Platform admin]
+ *     summary: Add packs of extra automatic WhatsApp messages to the tenant's current month
+ *     parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema: { type: object, properties: { packs: { type: integer, minimum: 1, maximum: 20, default: 1 } } }
+ *     responses:
+ *       201: { description: The updated usage }
+ */
+platformRouter.get('/tenants/:id/usage', platformController.tenantUsage);
+platformRouter.post('/tenants/:id/message-packs', platformController.addMessagePacks);
+
+/**
+ * @openapi
  * /admin/tenants/{id}/users:
  *   parameters:
  *     - { $ref: '#/components/parameters/Id' }

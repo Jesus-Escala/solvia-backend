@@ -72,3 +72,8 @@ export const tenantUserParamsSchema = z.object({
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 export type ListTenantsQuery = z.infer<typeof listTenantsQuerySchema>;
 export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;
+
+/** Packs of extra automatic WhatsApp messages for the current month. */
+export const addMessagePacksSchema = z.object({
+  packs: z.coerce.number().int().min(1).max(20).default(1),
+});

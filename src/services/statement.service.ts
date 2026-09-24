@@ -231,7 +231,9 @@ export const statementService = {
 
     const relativeUrl = await storageService.saveStatement(buffer);
     const statementUrl = storageService.toAbsoluteUrl(relativeUrl);
+    const automatic = whatsAppProvider.name !== 'mock';
     const notification = await notificationService.sendWhatsApp({
+      automatic,
       receivableId: linkedReceivableId,
       to: customer.phone,
       templateType: 'statement',
@@ -244,10 +246,10 @@ export const statementService = {
         statementUrl,
       },
     });
-    // Without a real provider nothing reaches the customer: hand back a click-to-chat link with
-    // the same message so the user can send it from their own WhatsApp.
+    // Without a real provider, or once the month's automatic messages are used up, hand back a
+    // click-to-chat link with the same message so the user can send it from their own WhatsApp.
     const whatsappUrl =
-      whatsAppProvider.name === 'mock'
+      !automatic || notification.limitReached
         ? whatsAppChatUrl(customer.phone, notification.sentContent)
         : undefined;
     return { statementUrl: relativeUrl, notification, whatsappUrl };
