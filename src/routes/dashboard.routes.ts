@@ -47,10 +47,28 @@ export const dashboardRouter = Router();
  *           application/json:
  *             schema: { $ref: '#/components/schemas/DashboardAnalytics' }
  *       400: { $ref: '#/components/responses/ValidationError' }
+ * /dashboard/concentration:
+ *   get:
+ *     tags: [Dashboard]
+ *     summary: Pareto / ABC of the debtors (how concentrated the open balance is)
+ *     description: >
+ *       Debtors ranked by open balance. Class A: the largest debtors that together owe up to 80%
+ *       of the balance (the one crossing 80% included); B: up to 95%; C: the rest. The curve is
+ *       sampled in at most 100 segments from (0, 0) to (1, 1).
+ *     parameters:
+ *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 5000, default: 20 }, description: How many of the largest debtors to list }
+ *     responses:
+ *       200:
+ *         description: Concentration
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/DebtConcentration' }
+ *       400: { $ref: '#/components/responses/ValidationError' }
  */
 dashboardRouter.get('/dashboard/summary', dashboardController.summary);
 dashboardRouter.get('/dashboard/cash-flow', dashboardController.cashFlow);
 dashboardRouter.get('/dashboard/analytics', dashboardController.analytics);
+dashboardRouter.get('/dashboard/concentration', dashboardController.concentration);
 
 /**
  * @openapi

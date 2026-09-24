@@ -179,8 +179,11 @@ export const analyticsRepository = {
     `;
   },
 
-  /** Customers ranked by open balance (unpaid receivables with a positive balance). */
-  topDebtors(limit: number) {
+  /**
+   * Customers ranked by open balance (unpaid receivables with a positive balance). Without
+   * `limit`, every debtor (`LIMIT NULL` means no limit in PostgreSQL).
+   */
+  topDebtors(limit?: number) {
     const tenantId = requireTenantId();
     return prisma.$queryRaw<
       Array<{
@@ -203,7 +206,7 @@ export const analyticsRepository = {
         AND r."totalAmount" > r."paidAmount"
       GROUP BY c."id", c."name"
       ORDER BY "outstanding" DESC, c."name" ASC, c."id" ASC
-      LIMIT ${limit}
+      LIMIT ${limit ?? null}
     `;
   },
 

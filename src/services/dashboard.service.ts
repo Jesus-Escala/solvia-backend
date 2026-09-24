@@ -17,6 +17,7 @@ import {
   type DateRange,
 } from '../domain/analytics';
 import { projectCashFlow, type CashFlowGrouping } from '../domain/cashFlow';
+import { CLASS_THRESHOLDS, debtConcentration } from '../domain/concentration';
 import { agingBuckets } from '../domain/portfolio';
 import { outstandingAmount } from '../domain/receivableStatus';
 import { riskScoreFromOutcomes, type RiskLevel, type RiskOutcome } from '../domain/riskScore';
@@ -235,6 +236,35 @@ export const dashboardService = {
       periods,
     );
     return { currency: env.CURRENCY, ...projection };
+  },
+
+  /**
+   * Pareto / ABC of the debtors: classes, the concentration curve and the `limit` largest
+   * debtors with their class and cumulative share.
+   */
+  async concentration(limit: number) {
+    const [rows, customers] = await Promise.all([
+      analyticsRepository.topDebtors(),
+      analyticsRepository.countCustomers(),
+    ]);
+    const { total, debtors, classes, curve, ranked } = debtConcentration(
+      rows.map((row) => ({
+        customerId: row.customerId,
+        name: row.name,
+        outstanding: toNumber(row.outstanding),
+        overdue: toNumber(row.overdue),
+        receivables: row.receivables,
+      })),
+    );
+    return {
+      currency: env.CURRENCY,
+      thresholds: CLASS_THRESHOLDS,
+      totals: { outstanding: total, debtors, customers },
+      classes,
+      curve,
+      debtors: ranked.slice(0, limit),
+      generatedAt: new Date().toISOString(),
+    };
   },
 
   /** Period KPIs vs the previous period, series, breakdowns and a snapshot of the portfolio. */

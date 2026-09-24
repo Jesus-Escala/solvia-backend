@@ -578,6 +578,65 @@ export const openApiSpec = swaggerJsdoc({
             overdueEveryDays: { type: 'integer', minimum: 0, maximum: 30, example: 3 },
           },
         },
+        DebtConcentration: {
+          type: 'object',
+          properties: {
+            currency: { type: 'string', example: 'PEN' },
+            thresholds: {
+              type: 'object',
+              properties: {
+                A: { type: 'number', example: 0.8 },
+                B: { type: 'number', example: 0.95 },
+              },
+            },
+            totals: {
+              type: 'object',
+              properties: {
+                outstanding: { type: 'number' },
+                debtors: { type: 'integer', description: 'Customers with an open balance' },
+                customers: { type: 'integer' },
+              },
+            },
+            classes: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  key: { type: 'string', enum: ['A', 'B', 'C'] },
+                  debtors: { type: 'integer' },
+                  outstanding: { type: 'number' },
+                  share: { type: 'number', description: 'Share of the open balance (0-1)' },
+                  debtorShare: { type: 'number', description: 'Share of the debtors (0-1)' },
+                },
+              },
+            },
+            curve: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { debtorShare: { type: 'number' }, debtShare: { type: 'number' } },
+              },
+            },
+            debtors: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  rank: { type: 'integer' },
+                  customerId: { type: 'string', format: 'uuid' },
+                  name: { type: 'string' },
+                  outstanding: { type: 'number' },
+                  overdue: { type: 'number' },
+                  receivables: { type: 'integer' },
+                  share: { type: 'number' },
+                  cumulativeShare: { type: 'number' },
+                  class: { type: 'string', enum: ['A', 'B', 'C'] },
+                },
+              },
+            },
+            generatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
         CashFlow: {
           type: 'object',
           properties: {

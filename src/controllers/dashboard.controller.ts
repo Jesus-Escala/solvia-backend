@@ -10,6 +10,7 @@ import { analyticsQuerySchema } from '../validators/analytics.schemas';
 import { paginationSchema } from '../validators/common.schemas';
 import {
   cashFlowQuerySchema,
+  concentrationQuerySchema,
   generateReportSchema,
   reportPeriodParamSchema,
 } from '../validators/settings.schemas';
@@ -33,6 +34,11 @@ export const dashboardController = {
   async analytics(req: Request, res: Response) {
     const period = analyticsQuerySchema(todayInTimezone(env.APP_TIMEZONE)).parse(req.query);
     res.json(await dashboardService.analytics(period));
+  },
+
+  async concentration(req: Request, res: Response) {
+    const { limit } = concentrationQuerySchema.parse(req.query);
+    res.json(await dashboardService.concentration(limit));
   },
 
   async listReports(_req: Request, res: Response) {

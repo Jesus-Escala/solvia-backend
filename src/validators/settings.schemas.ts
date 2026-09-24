@@ -25,6 +25,10 @@ export const cashFlowQuerySchema = z.object({
   periods: z.coerce.number().int().min(1).max(24).default(8),
 });
 
+export const concentrationQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(5000).default(20),
+});
+
 /** Reporting period in `YYYY-MM` format. */
 export const periodSchema = z
   .string()

@@ -558,6 +558,10 @@ The summary also returns `totals` (outstanding, overdue, collected this month vs
 - **Dates in SQL:** `date` columns are compared with inline `DATE 'YYYY-MM-DD'` literals (`repositories/sql.ts`). Bind parameters made PostgreSQL switch to a generic plan after a few executions of the prepared statement (index scan + nested loop over years of payments, 4–8x slower); literals keep a plan per range. Timestamps are converted with `AT TIME ZONE 'UTC' AT TIME ZONE <APP_TIMEZONE>`.
 - **Indexes** (migration `20260926090000_analytics_indexes`): `payments(date)`, `receivables(tenantId, issueDate)`, `customers(tenantId, createdAt)`, next to the existing `receivables(tenantId, dueDate)` and `payments(receivableId)`.
 
+### 8.9 Debt concentration (`concentration.ts`)
+
+`GET /dashboard/concentration?limit` (tenant, any role) is the Pareto / ABC analysis of the debtors. The repository returns every customer with an open balance (`topDebtors()` without a limit); `debtConcentration` ranks them (largest balance first, ties by name) and classifies them by the balance accumulated **before** each one: under 80% → A (so the debtor that crosses 80% is A), under 95% → B, otherwise C. It returns the class totals (`share` of the balance and `debtorShare` of the debtors), the Lorenz curve sampled in at most 100 segments from (0, 0) to (1, 1), and the `limit` largest debtors (default 20, max 5,000: the app's CSV export asks for all of them) with their `share`, `cumulativeShare` and class. Shares are rounded to 4 decimals.
+
 Response:
 
 | Field       | Content                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
