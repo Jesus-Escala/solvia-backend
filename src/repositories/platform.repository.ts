@@ -159,6 +159,14 @@ export const platformRepository = {
     return basePrisma.tenant.groupBy({ by: ['plan'], _count: { _all: true } });
   },
 
+  /** Plan and modules of every active business (for the estimated revenue). */
+  activePlans() {
+    return basePrisma.tenant.findMany({
+      where: { status: 'active' },
+      select: { plan: true, modules: true },
+    });
+  },
+
   /** Active businesses with each optional module, and without any (sales opportunities). */
   async activeModuleCounts() {
     const active = { status: 'active' as const };

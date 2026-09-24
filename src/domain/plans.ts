@@ -37,3 +37,34 @@ export function planAllowance(plan: TenantPlan, modules: readonly TenantModule[]
 export function hasRoom(used: number, limit: number | null): boolean {
   return limit === null || used < limit;
 }
+
+/** Reference monthly prices (PEN) of each module; Cobranza is always included. */
+export const MODULE_PRICES = { collections: 39, sales: 29, inventory: 29 } as const;
+
+/** Discount on the sum of module prices, by number of modules. */
+export const MODULE_DISCOUNTS: Record<1 | 2 | 3, number> = { 1: 0, 2: 0.1, 3: 0.15 };
+
+/** Yearly billing: 12 months for the price of 10. */
+export const ANNUAL_MONTHS_PAID = 10;
+
+const round2 = (value: number) => Math.round(value * 100) / 100;
+
+/**
+ * What a business pays per month for its modules: `starter` bills monthly, `pro` yearly (spread
+ * over 12 months); null on the free plan.
+ */
+export function planPrice(plan: TenantPlan, modules: readonly TenantModule[]) {
+  if (plan === 'free') return null;
+  const optional = [...new Set(modules)];
+  const count = Math.min(3, 1 + optional.length) as 1 | 2 | 3;
+  const list =
+    MODULE_PRICES.collections + optional.reduce((sum, module) => sum + MODULE_PRICES[module], 0);
+  const monthly = round2(list * (1 - MODULE_DISCOUNTS[count]));
+  const billing = plan === 'pro' ? ('annual' as const) : ('monthly' as const);
+  return {
+    billing,
+    list,
+    discount: MODULE_DISCOUNTS[count],
+    perMonth: billing === 'annual' ? round2((monthly * ANNUAL_MONTHS_PAID) / 12) : monthly,
+  };
+}

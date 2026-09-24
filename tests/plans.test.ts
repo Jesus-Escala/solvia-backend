@@ -1,6 +1,12 @@
 import type { Prisma } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FREE_ALLOWANCE, hasRoom, PAID_ALLOWANCES, planAllowance } from '../src/domain/plans';
+import {
+  FREE_ALLOWANCE,
+  hasRoom,
+  PAID_ALLOWANCES,
+  planAllowance,
+  planPrice,
+} from '../src/domain/plans';
 import { runWithTenant } from '../src/lib/tenantContext';
 import { planUsageRepository } from '../src/repositories/planUsage.repository';
 
@@ -36,6 +42,33 @@ describe('plan allowance', () => {
     expect(hasRoom(10_000, null)).toBe(true);
     expect(hasRoom(499, 500)).toBe(true);
     expect(hasRoom(500, 500)).toBe(false);
+  });
+});
+
+describe('plan price', () => {
+  it('is free on the free plan', () => {
+    expect(planPrice('free', ['sales'])).toBeNull();
+  });
+
+  it('adds the modules and discounts by how many there are', () => {
+    expect(planPrice('starter', [])).toEqual({
+      billing: 'monthly',
+      list: 39,
+      discount: 0,
+      perMonth: 39,
+    });
+    expect(planPrice('starter', ['sales'])).toMatchObject({ list: 68, perMonth: 61.2 });
+    expect(planPrice('starter', ['sales', 'inventory'])).toMatchObject({
+      list: 97,
+      perMonth: 82.45,
+    });
+  });
+
+  it('bills yearly as 10 months spread over 12', () => {
+    expect(planPrice('pro', ['sales', 'inventory'])).toMatchObject({
+      billing: 'annual',
+      perMonth: 68.71,
+    });
   });
 });
 

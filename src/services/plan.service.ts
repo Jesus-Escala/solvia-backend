@@ -1,5 +1,5 @@
 import { env } from '../config/env';
-import { hasRoom, MESSAGE_PACK_SIZE, planAllowance } from '../domain/plans';
+import { hasRoom, MESSAGE_PACK_SIZE, planAllowance, planPrice } from '../domain/plans';
 import { AppError } from '../errors/AppError';
 import { formatDateOnly, startOfMonth, todayInTimezone } from '../lib/dates';
 import { runWithTenant } from '../lib/tenantContext';
@@ -39,6 +39,8 @@ export const planService = {
       users: { used: users, limit: allowance.users },
       customers: { used: customers, limit: allowance.customers },
       packSize: MESSAGE_PACK_SIZE,
+      /** What the business pays per month (null on the free plan). */
+      price: planPrice(tenant.plan, tenant.modules),
     };
   },
 

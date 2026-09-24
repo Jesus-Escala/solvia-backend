@@ -34,6 +34,7 @@ import type { CreateTeamUserInput, UpdateTeamUserInput } from '../validators/use
 import { accessRequestService } from './accessRequest.service';
 import { toTenantUserDto } from './dto';
 import { emailTaken, newTemporaryPassword, userManagementService } from './userManagement.service';
+import { planPrice } from '../domain/plans';
 
 const SIGNUP_MONTHS = 12;
 const COLLECTION_MONTHS = 6;
@@ -169,6 +170,7 @@ export const platformService = {
       pendingAccessRequests,
       periodData,
       modules,
+      activePlans,
     ] = await Promise.all([
       platformRepository.tenantCountsByStatus(),
       platformRepository.tenantCountsByPlan(),
@@ -184,6 +186,7 @@ export const platformService = {
       accessRequestService.countPending(),
       period ? periodStats(period) : null,
       platformRepository.activeModuleCounts(),
+      platformRepository.activePlans(),
     ]);
 
     const countByStatus = (status: 'active' | 'suspended') =>
@@ -231,6 +234,13 @@ export const platformService = {
         pendingAccessRequests,
       },
       modules,
+      /** Monthly revenue at reference prices of the active paying businesses. */
+      estimatedMonthlyRevenue: roundMoney(
+        activePlans.reduce(
+          (sum, row) => sum + (planPrice(row.plan, row.modules)?.perMonth ?? 0),
+          0,
+        ),
+      ),
       tenantsByPlan: planBreakdown(
         byPlan.map((row) => ({ plan: row.plan, count: row._count._all })),
       ),
