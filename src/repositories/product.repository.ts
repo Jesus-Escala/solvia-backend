@@ -29,26 +29,70 @@ function listFilter(options: {
   };
 }
 
+export type ProductOrderField =
+  'name' | 'code' | 'unit' | 'price' | 'cost' | 'margin' | 'stock' | 'minStock' | 'createdAt';
+
+/** Empty values (no code, cost or alert level; products without stock count) go last. */
+function productOrderBy(
+  field: Exclude<ProductOrderField, 'margin'>,
+  dir: SortDir,
+): Prisma.ProductOrderByWithRelationInput[] {
+  if (field === 'code' || field === 'cost' || field === 'minStock') {
+    return [{ [field]: { sort: dir, nulls: 'last' } }];
+  }
+  if (field === 'stock') return [{ trackStock: 'desc' }, { stock: dir }];
+  return [{ [field]: dir }];
+}
+
+/**
+ * The margin ((price − cost) / price) is not a column, so it is sorted here: only id, price and
+ * cost of the matching products are read (a catalog is at most a few thousand products), then
+ * the page is loaded. Products without a cost go last.
+ */
+async function findManyByMargin(
+  where: Prisma.ProductWhereInput,
+  pagination: Pagination,
+  dir: SortDir,
+) {
+  const all = await prisma.product.findMany({
+    where,
+    select: { id: true, price: true, cost: true },
+  });
+  const margin = (row: (typeof all)[number]) => {
+    const price = Number(row.price);
+    return row.cost === null || price === 0 ? null : (price - Number(row.cost)) / price;
+  };
+  const sign = dir === 'asc' ? 1 : -1;
+  const ordered = all
+    .map((row) => ({ id: row.id, margin: margin(row) }))
+    .sort((a, b) => {
+      if (a.margin === null || b.margin === null) {
+        return a.margin === b.margin ? a.id.localeCompare(b.id) : a.margin === null ? 1 : -1;
+      }
+      return (a.margin - b.margin) * sign || a.id.localeCompare(b.id);
+    });
+  const start = (pagination.page - 1) * pagination.pageSize;
+  const ids = ordered.slice(start, start + pagination.pageSize).map((row) => row.id);
+  const rows = await prisma.product.findMany({ where: { id: { in: ids } } });
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return [ids.map((id) => byId.get(id)!).filter(Boolean), all.length] as const;
+}
+
 export const productRepository = {
   findMany(options: {
     search?: string;
     status: 'active' | 'archived' | 'all';
     lowStock?: boolean;
     pagination: Pagination;
-    orderBy: { field: 'name' | 'code' | 'price' | 'cost' | 'createdAt'; dir: SortDir };
+    orderBy: { field: ProductOrderField; dir: SortDir };
   }) {
     const where = listFilter(options);
     const { pagination, orderBy } = options;
+    if (orderBy.field === 'margin') return findManyByMargin(where, pagination, orderBy.dir);
     return prisma.$transaction([
       prisma.product.findMany({
         where,
-        orderBy: [
-          // Products without a code or cost go last (only those two columns can be empty).
-          orderBy.field === 'code' || orderBy.field === 'cost'
-            ? { [orderBy.field]: { sort: orderBy.dir, nulls: 'last' } }
-            : { [orderBy.field]: orderBy.dir },
-          { id: 'asc' },
-        ],
+        orderBy: [...productOrderBy(orderBy.field, orderBy.dir), { id: 'asc' }],
         skip: (pagination.page - 1) * pagination.pageSize,
         take: pagination.pageSize,
       }),

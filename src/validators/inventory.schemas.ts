@@ -1,7 +1,7 @@
 import { AdjustmentReason, SaleDocType } from '@prisma/client';
 import { z } from 'zod';
 import { phoneSchema } from './customer.schemas';
-import { dateOnlySchema, paginationSchema } from './common.schemas';
+import { dateOnlySchema, paginationSchema, sortDirSchema } from './common.schemas';
 
 const optionalText = (max: number) =>
   z
@@ -45,6 +45,8 @@ export const updateSupplierSchema = createSupplierSchema
 
 export const listSuppliersQuerySchema = paginationSchema.extend({
   search: z.string().trim().max(120).optional(),
+  sortBy: z.enum(['name', 'phone', 'purchases']).default('name'),
+  sortDir: sortDirSchema,
 });
 
 // --- Purchases -------------------------------------------------------------
@@ -75,6 +77,9 @@ export const listPurchasesQuerySchema = paginationSchema.extend({
   from: dateOnlySchema.optional(),
   to: dateOnlySchema.optional(),
   status: z.enum(['completed', 'voided']).optional(),
+  /** Without it: newest first. */
+  sortBy: z.enum(['number', 'date', 'supplier', 'items', 'total']).optional(),
+  sortDir: sortDirSchema,
 });
 
 // --- Stock adjustments -----------------------------------------------------

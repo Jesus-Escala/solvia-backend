@@ -58,7 +58,9 @@ export const listProductsQuerySchema = paginationSchema.extend({
     .enum(['true', 'false'])
     .transform((value) => value === 'true')
     .optional(),
-  sortBy: z.enum(['name', 'code', 'price', 'cost', 'createdAt']).default('name'),
+  sortBy: z
+    .enum(['name', 'code', 'unit', 'price', 'cost', 'margin', 'stock', 'minStock', 'createdAt'])
+    .default('name'),
   sortDir: sortDirSchema,
 });
 

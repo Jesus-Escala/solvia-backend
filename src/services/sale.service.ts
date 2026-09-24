@@ -93,9 +93,33 @@ async function findOrFail(id: string, db: DbClient = prisma) {
   return sale;
 }
 
+/** Newest first by default; other columns keep the newest first among equals. */
+function saleOrderBy(
+  field: NonNullable<ListSalesQuery['sortBy']> | null,
+  dir: Prisma.SortOrder,
+): Prisma.SaleOrderByWithRelationInput[] {
+  const newest: Prisma.SaleOrderByWithRelationInput[] = [{ date: 'desc' }, { number: 'desc' }];
+  switch (field) {
+    case null:
+      return newest;
+    case 'number':
+      return [{ number: dir }];
+    case 'date':
+      return [{ date: dir }, { number: dir }];
+    case 'customer':
+      // Walk-in sales (no customer) go last.
+      return [{ customer: { name: dir } }, ...newest];
+    case 'items':
+      return [{ items: { _count: dir } }, ...newest];
+    default:
+      return [{ [field]: dir }, ...newest];
+  }
+}
+
 export const saleService = {
   async list(query: ListSalesQuery) {
-    const { search, from, to, paymentType, status, shortage, ...pagination } = query;
+    const { search, from, to, paymentType, status, shortage, sortBy, sortDir, ...pagination } =
+      query;
     const number = search && /^#?\d+$/.test(search) ? Number(search.replace('#', '')) : undefined;
     const where: Prisma.SaleWhereInput = {
       ...(paymentType && { paymentType }),
@@ -111,7 +135,7 @@ export const saleService = {
       prisma.sale.findMany({
         where,
         include: saleInclude,
-        orderBy: [{ date: 'desc' }, { number: 'desc' }],
+        orderBy: saleOrderBy(sortBy ?? null, sortDir),
         skip: (pagination.page - 1) * pagination.pageSize,
         take: pagination.pageSize,
       }),

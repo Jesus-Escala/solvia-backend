@@ -59,9 +59,31 @@ async function findOrFail(id: string, db: DbClient = prisma) {
   return purchase;
 }
 
+/** Newest first by default; other columns keep the newest first among equals. */
+function purchaseOrderBy(
+  field: NonNullable<ListPurchasesQuery['sortBy']> | null,
+  dir: Prisma.SortOrder,
+): Prisma.PurchaseOrderByWithRelationInput[] {
+  const newest: Prisma.PurchaseOrderByWithRelationInput[] = [{ date: 'desc' }, { number: 'desc' }];
+  switch (field) {
+    case null:
+      return newest;
+    case 'number':
+      return [{ number: dir }];
+    case 'date':
+      return [{ date: dir }, { number: dir }];
+    case 'supplier':
+      return [{ supplier: { name: dir } }, ...newest];
+    case 'items':
+      return [{ items: { _count: dir } }, ...newest];
+    case 'total':
+      return [{ total: dir }, ...newest];
+  }
+}
+
 export const purchaseService = {
   async list(query: ListPurchasesQuery) {
-    const { search, from, to, status, ...pagination } = query;
+    const { search, from, to, status, sortBy, sortDir, ...pagination } = query;
     const number = search && /^#?\d+$/.test(search) ? Number(search.replace('#', '')) : null;
     const where: Prisma.PurchaseWhereInput = {
       ...(status && { status }),
@@ -75,7 +97,7 @@ export const purchaseService = {
       prisma.purchase.findMany({
         where,
         include: purchaseInclude,
-        orderBy: [{ date: 'desc' }, { number: 'desc' }],
+        orderBy: purchaseOrderBy(sortBy ?? null, sortDir),
         skip: (pagination.page - 1) * pagination.pageSize,
         take: pagination.pageSize,
       }),

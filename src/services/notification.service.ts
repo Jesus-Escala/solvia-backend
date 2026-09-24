@@ -2,7 +2,10 @@ import type { MessageTemplateType, NotificationStatus } from '@prisma/client';
 import type { TemplateVariables } from '../domain/template';
 import { logger } from '../lib/logger';
 import { whatsAppProvider, type WhatsAppProvider } from '../providers/whatsapp';
-import { notificationRepository } from '../repositories/notification.repository';
+import {
+  notificationRepository,
+  type NotificationOrder,
+} from '../repositories/notification.repository';
 import { paginate, type Pagination } from '../validators/common.schemas';
 import { toNotificationDto } from './dto';
 
@@ -49,8 +52,13 @@ export function createNotificationService(provider: WhatsAppProvider) {
     async list(
       filters: { receivableId?: string; customerId?: string; status?: NotificationStatus },
       pagination: Pagination,
+      orderBy: NotificationOrder | null = null,
     ) {
-      const [notifications, total] = await notificationRepository.findMany(filters, pagination);
+      const [notifications, total] = await notificationRepository.findMany(
+        filters,
+        pagination,
+        orderBy,
+      );
       const rows = notifications.map(({ receivable, ...notification }) => ({
         ...toNotificationDto(notification),
         receivable,

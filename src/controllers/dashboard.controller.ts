@@ -7,7 +7,7 @@ import { monthlyReportService } from '../services/monthlyReport.service';
 import { notificationService } from '../services/notification.service';
 import { reminderService } from '../services/reminder.service';
 import { analyticsFiltersSchema, analyticsQuerySchema } from '../validators/analytics.schemas';
-import { paginationSchema } from '../validators/common.schemas';
+import { paginationSchema, sortDirSchema } from '../validators/common.schemas';
 import {
   cashFlowQuerySchema,
   concentrationQuerySchema,
@@ -19,6 +19,9 @@ const notificationsQuerySchema = paginationSchema.extend({
   receivableId: z.uuid().optional(),
   customerId: z.uuid().optional(),
   status: z.enum(['sent', 'failed']).optional(),
+  /** Without it: newest first. */
+  sortBy: z.enum(['sentAt', 'customer', 'type', 'status', 'content']).optional(),
+  sortDir: sortDirSchema,
 });
 
 export const dashboardController = {
@@ -58,10 +61,15 @@ export const dashboardController = {
   },
 
   async listNotifications(req: Request, res: Response) {
-    const { receivableId, customerId, status, ...pagination } = notificationsQuerySchema.parse(
-      req.query,
+    const { receivableId, customerId, status, sortBy, sortDir, ...pagination } =
+      notificationsQuerySchema.parse(req.query);
+    res.json(
+      await notificationService.list(
+        { receivableId, customerId, status },
+        pagination,
+        sortBy ? { field: sortBy, dir: sortDir } : null,
+      ),
     );
-    res.json(await notificationService.list({ receivableId, customerId, status }, pagination));
   },
 
   async runReminders(_req: Request, res: Response) {

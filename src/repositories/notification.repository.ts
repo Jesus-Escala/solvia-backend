@@ -1,12 +1,34 @@
 import type { MessageTemplateType, NotificationStatus, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import type { Pagination } from '../validators/common.schemas';
+import type { Pagination, SortDir } from '../validators/common.schemas';
 
 export interface NotificationCreateData {
   receivableId: string;
   templateType: MessageTemplateType | null;
   status: NotificationStatus;
   sentContent: string;
+}
+
+export interface NotificationOrder {
+  field: 'sentAt' | 'customer' | 'type' | 'status' | 'content';
+  dir: SortDir;
+}
+
+/** Newest first by default; any other column keeps the newest first among equals. */
+function notificationOrderBy(
+  orderBy: NotificationOrder | null,
+): Prisma.NotificationOrderByWithRelationInput[] {
+  if (!orderBy) return [{ sentAt: 'desc' }, { id: 'desc' }];
+  const { field, dir } = orderBy;
+  const first: Prisma.NotificationOrderByWithRelationInput =
+    field === 'customer'
+      ? { receivable: { customer: { name: dir } } }
+      : field === 'type'
+        ? { templateType: { sort: dir, nulls: 'last' } }
+        : field === 'content'
+          ? { sentContent: dir }
+          : { [field]: dir };
+  return [first, { sentAt: 'desc' }, { id: 'desc' }];
 }
 
 export const notificationRepository = {
@@ -17,6 +39,7 @@ export const notificationRepository = {
   findMany(
     filters: { receivableId?: string; customerId?: string; status?: NotificationStatus },
     pagination: Pagination,
+    orderBy: NotificationOrder | null = null,
   ) {
     const where: Prisma.NotificationWhereInput = {
       ...(filters.receivableId && { receivableId: filters.receivableId }),
@@ -27,7 +50,7 @@ export const notificationRepository = {
     return prisma.$transaction([
       prisma.notification.findMany({
         where,
-        orderBy: { sentAt: 'desc' },
+        orderBy: notificationOrderBy(orderBy),
         skip: (pagination.page - 1) * pagination.pageSize,
         take: pagination.pageSize,
         include: {

@@ -39,13 +39,20 @@ async function findOrFail(id: string) {
 
 export const supplierService = {
   async list(query: ListSuppliersQuery) {
-    const { search, ...pagination } = query;
+    const { search, sortBy, sortDir, ...pagination } = query;
     const where = searchFilter(search ?? null);
     const [rows, total] = await prisma.$transaction([
       prisma.supplier.findMany({
         where,
         include: { _count: { select: { purchases: true } } },
-        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        orderBy: [
+          sortBy === 'purchases'
+            ? { purchases: { _count: sortDir } }
+            : sortBy === 'phone'
+              ? { phone: { sort: sortDir, nulls: 'last' } }
+              : { name: sortDir },
+          { id: 'asc' },
+        ],
         skip: (pagination.page - 1) * pagination.pageSize,
         take: pagination.pageSize,
       }),

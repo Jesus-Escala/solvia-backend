@@ -1,6 +1,6 @@
 import { PaymentMethod, SaleDocType } from '@prisma/client';
 import { z } from 'zod';
-import { dateOnlySchema, paginationSchema } from './common.schemas';
+import { dateOnlySchema, paginationSchema, sortDirSchema } from './common.schemas';
 
 const quantitySchema = z.coerce
   .number('Expected a number')
@@ -73,6 +73,9 @@ export const listSalesQuerySchema = paginationSchema.extend({
     .enum(['true', 'false'])
     .transform((value) => value === 'true')
     .optional(),
+  /** Without it: newest first. */
+  sortBy: z.enum(['number', 'date', 'customer', 'items', 'paymentType', 'total']).optional(),
+  sortDir: sortDirSchema,
 });
 
 export type CreateSaleInput = z.infer<typeof createSaleSchema>;
