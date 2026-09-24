@@ -1,4 +1,5 @@
 import type { MessageTemplateType } from '@prisma/client';
+import type { Locale } from '../lib/locale';
 
 export type TemplateVariables = Record<string, string | number | undefined>;
 
@@ -36,3 +37,42 @@ export const DEFAULT_TEMPLATES: Record<MessageTemplateType, string> = {
   statement:
     'Hi {{name}}, thank you for your payment to {{business}}. Your outstanding balance as of {{date}} is {{amount}}. Download your account statement here: {{statementUrl}}',
 };
+
+/** Built-in templates in Spanish, used while the tenant keeps the default text. */
+export const DEFAULT_TEMPLATES_ES: Record<MessageTemplateType, string> = {
+  pre_due_reminder:
+    'Hola {{name}}, te recordamos de parte de {{business}} que tu pago de {{amount}} por "{{description}}" vence el {{date}}. Puedes pagar en línea aquí: {{paymentLink}}',
+  due_reminder:
+    'Hola {{name}}, tu pago de {{amount}} por "{{description}}" a {{business}} vence hoy ({{date}}). Paga de forma segura aquí: {{paymentLink}}',
+  overdue_reminder:
+    'Hola {{name}}, tu pago de {{amount}} por "{{description}}" a {{business}} venció el {{date}} y lleva {{daysOverdue}} días de atraso. Por favor regularízalo lo antes posible: {{paymentLink}}',
+  statement:
+    'Hola {{name}}, gracias por tu pago a {{business}}. Tu saldo pendiente al {{date}} es {{amount}}. Descarga tu estado de cuenta aquí: {{statementUrl}}',
+};
+
+const DEFAULTS_BY_LOCALE: Record<Locale, Record<MessageTemplateType, string>> = {
+  en: DEFAULT_TEMPLATES,
+  es: DEFAULT_TEMPLATES_ES,
+};
+
+/** The built-in text of a template in the given language. */
+export function defaultTemplate(type: MessageTemplateType, locale: Locale): string {
+  return DEFAULTS_BY_LOCALE[locale][type];
+}
+
+/** Whether `text` is still one of the built-in texts (in any language), i.e. not customised. */
+export function isDefaultTemplate(type: MessageTemplateType, text: string): boolean {
+  return Object.values(DEFAULTS_BY_LOCALE).some((defaults) => defaults[type] === text);
+}
+
+/**
+ * The text to send: a customised template as written; a default one in the requested language
+ * (tenants are created with the English defaults stored).
+ */
+export function resolveTemplate(
+  type: MessageTemplateType,
+  stored: string | undefined,
+  locale: Locale,
+): string {
+  return stored && !isDefaultTemplate(type, stored) ? stored : defaultTemplate(type, locale);
+}

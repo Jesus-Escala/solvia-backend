@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env';
 import { openApiSpec } from './config/swagger';
+import { localeMiddleware } from './lib/locale';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { apiRouter } from './routes';
 import { FILES_ROUTE, storageRoot } from './services/storage.service';
@@ -29,6 +30,8 @@ export function createApp() {
   );
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false }));
+  // Language of the customer-facing output (statements, WhatsApp messages).
+  app.use(localeMiddleware);
   if (env.NODE_ENV !== 'test') {
     app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
   }

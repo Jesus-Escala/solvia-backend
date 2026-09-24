@@ -3,6 +3,8 @@
  * UTC midnight, so every calculation here operates on UTC calendar days.
  */
 
+import { currentLocale, INTL_LOCALES, type Locale } from './locale';
+
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -33,9 +35,9 @@ export function formatDateOnly(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** Human readable date, e.g. "Sep 23, 2026". */
-export function formatDisplayDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+/** Human readable date in the request language, e.g. "Sep 23, 2026" / "23 set. 2026". */
+export function formatDisplayDate(date: Date, locale: Locale = currentLocale()): string {
+  return new Intl.DateTimeFormat(INTL_LOCALES[locale], {
     timeZone: 'UTC',
     year: 'numeric',
     month: 'short',

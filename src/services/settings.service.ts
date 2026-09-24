@@ -1,6 +1,13 @@
 import type { MessageTemplateType } from '@prisma/client';
 import type { ReminderRules } from '../domain/reminderRules';
-import { DEFAULT_TEMPLATES, TEMPLATE_PLACEHOLDERS } from '../domain/template';
+import {
+  DEFAULT_TEMPLATES,
+  defaultTemplate,
+  isDefaultTemplate,
+  resolveTemplate,
+  TEMPLATE_PLACEHOLDERS,
+} from '../domain/template';
+import { currentLocale } from '../lib/locale';
 import {
   reminderSettingsRepository,
   templateRepository,
@@ -22,11 +29,11 @@ export const settingsService = {
   async listTemplates() {
     const stored = await templateRepository.list();
     const templates = TEMPLATE_TYPES.map((type) => {
-      const template = stored.find((item) => item.type === type);
+      const text = stored.find((item) => item.type === type)?.text;
       return {
         type,
-        text: template?.text ?? DEFAULT_TEMPLATES[type],
-        isDefault: !template || template.text === DEFAULT_TEMPLATES[type],
+        text: resolveTemplate(type, text, currentLocale()),
+        isDefault: !text || isDefaultTemplate(type, text),
       };
     });
     return { templates, placeholders: TEMPLATE_PLACEHOLDERS };
@@ -34,7 +41,7 @@ export const settingsService = {
 
   async getTemplateText(type: MessageTemplateType) {
     const template = await templateRepository.findByType(type);
-    return template?.text ?? DEFAULT_TEMPLATES[type];
+    return resolveTemplate(type, template?.text, currentLocale());
   },
 
   /** Loads all template texts at once (used by the reminder engine). */
@@ -43,7 +50,7 @@ export const settingsService = {
     return Object.fromEntries(
       TEMPLATE_TYPES.map((type) => [
         type,
-        stored.find((item) => item.type === type)?.text ?? DEFAULT_TEMPLATES[type],
+        resolveTemplate(type, stored.find((item) => item.type === type)?.text, currentLocale()),
       ]),
     ) as Record<MessageTemplateType, string>;
   },
@@ -53,12 +60,12 @@ export const settingsService = {
     return {
       type: template.type,
       text: template.text,
-      isDefault: template.text === DEFAULT_TEMPLATES[type],
+      isDefault: isDefaultTemplate(type, template.text),
     };
   },
 
   async resetTemplate(type: MessageTemplateType) {
-    return this.updateTemplate(type, DEFAULT_TEMPLATES[type]);
+    return this.updateTemplate(type, defaultTemplate(type, currentLocale()));
   },
 
   async getReminderRules(): Promise<ReminderRules> {

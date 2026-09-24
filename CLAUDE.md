@@ -96,3 +96,12 @@ new users get a temporary password (`src/domain/temporaryPassword.ts`) and must 
 English code/comments/commits; Spanish only in user-facing data (seed, WhatsApp templates).
 Keep responses backwards compatible — the frontends deploy independently. Secrets only in `.env`
 (see `.env.example`); never commit `.env`, `storage/` or `.local-db/`.
+
+## Language of customer-facing output
+
+`localeMiddleware` (src/lib/locale.ts) reads `Accept-Language` (the frontends send the UI
+language) into a per-request context. `formatDisplayDate`/`formatMoney`, the PDF statement
+(`STRINGS` in statement.service.ts) and default WhatsApp templates (`resolveTemplate`) follow it;
+customised templates are sent as written. Without a request (cron jobs) the default is English.
+With `WHATSAPP_PROVIDER=mock`, `POST /customers/:id/statement/send` also returns `whatsappUrl`
+(a wa.me click-to-chat link) so the app can open WhatsApp with the message ready.
