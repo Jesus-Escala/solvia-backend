@@ -153,11 +153,14 @@ receivableRouter.post('/:id/payments', optionalProofUpload, receivableController
  *   post:
  *     tags: [Reminders]
  *     summary: Send a WhatsApp reminder now, regardless of the schedule
+ *     description: >
+ *       With the mock WhatsApp provider nothing reaches the customer, so the response also carries
+ *       `whatsappUrl`, a click-to-chat link with the same message for the user to send it.
  *     parameters:
  *       - { $ref: '#/components/parameters/Id' }
  *     responses:
  *       201:
- *         description: Notification log entry
+ *         description: Notification log entry (plus `whatsappUrl` with the mock provider)
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Notification' }

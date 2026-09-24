@@ -7,6 +7,7 @@ import { currentLocale, type Locale } from '../lib/locale';
 import { formatMoney, roundMoney, toNumber } from '../lib/money';
 import { customerRepository } from '../repositories/customer.repository';
 import { tenantRepository } from '../repositories/tenant.repository';
+import { whatsAppChatUrl } from '../lib/whatsapp';
 import { whatsAppProvider } from '../providers/whatsapp';
 import { notificationService } from './notification.service';
 import { settingsService } from './settings.service';
@@ -91,11 +92,6 @@ const STRINGS = {
 } satisfies Record<Locale, unknown>;
 
 type Strings = (typeof STRINGS)[Locale];
-
-/** Click-to-chat link that opens WhatsApp with `text` ready to send to `phone` (E.164). */
-function whatsAppChatUrl(phone: string, text: string) {
-  return `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
-}
 
 function renderToBuffer(build: (doc: PdfDoc) => void): Promise<Buffer> {
   return new Promise((resolve, reject) => {

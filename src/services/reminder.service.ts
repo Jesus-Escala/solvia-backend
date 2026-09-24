@@ -17,6 +17,8 @@ import { receivableRepository } from '../repositories/receivable.repository';
 import { tenantRepository } from '../repositories/tenant.repository';
 import { notificationService } from './notification.service';
 import { receivableService } from './receivable.service';
+import { whatsAppChatUrl } from '../lib/whatsapp';
+import { whatsAppProvider } from '../providers/whatsapp';
 import { settingsService } from './settings.service';
 
 const REMINDER_TYPES: ReminderType[] = ['pre_due_reminder', 'due_reminder', 'overdue_reminder'];
@@ -165,6 +167,16 @@ export const reminderService = {
       tenantRepository.findCurrent(),
       settingsService.getTemplateTexts(),
     ]);
-    return send(receivable, decision, { businessName: tenant?.name ?? 'Solvia', templates });
+    const notification = await send(receivable, decision, {
+      businessName: tenant?.name ?? 'Solvia',
+      templates,
+    });
+    // Without a real provider nothing reaches the customer: like the statement, hand back a
+    // click-to-chat link with the same message so the user can send it from their WhatsApp.
+    const whatsappUrl =
+      whatsAppProvider.name === 'mock'
+        ? whatsAppChatUrl(receivable.customer.phone, notification.sentContent)
+        : undefined;
+    return { ...notification, whatsappUrl };
   },
 };
