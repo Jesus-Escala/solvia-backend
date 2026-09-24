@@ -10,6 +10,7 @@ import {
   completeBreakdown,
   moneyMetric,
   openBalanceWithin,
+  isoWeekday,
   ratio,
   sumWithin,
   weekdayTotals,
@@ -33,6 +34,8 @@ import { roundMoney, toNumber } from '../lib/money';
 import { analyticsRepository } from '../repositories/analytics.repository';
 import { monthlyReportRepository } from '../repositories/monthlyReport.repository';
 import { receivableRepository } from '../repositories/receivable.repository';
+import { customerRepository } from '../repositories/customer.repository';
+import type { AnalyticsFilters } from '../validators/analytics.schemas';
 import { toMonthlyReportDto, toReceivableDto } from './dto';
 
 const STATUSES: ReceivableStatus[] = ['pending', 'partial', 'overdue', 'paid'];
@@ -267,11 +270,20 @@ export const dashboardService = {
     };
   },
 
-  /** Period KPIs vs the previous period, series, breakdowns and a snapshot of the portfolio. */
-  async analytics(period: AnalyticsPeriod) {
+  /**
+   * Period KPIs vs the previous period, series, breakdowns and a snapshot of the portfolio.
+   *
+   * Cross-filters: payment data (collected, payments, days to pay, series) honours every filter;
+   * receivable data (issued, due, collection rate) and reminders only the customer; new
+   * customers and the snapshot none. Each breakdown ignores its own dimension so the other
+   * options stay visible for switching: `byMethod` skips `method`, `byWeekday` skips `weekday`
+   * and `topPayers` skips `customerId`.
+   */
+  async analytics(period: AnalyticsPeriod, filters: AnalyticsFilters = {}) {
     const today = todayInTimezone(env.APP_TIMEZONE);
     const current: DateRange = { from: period.from, to: period.to };
     const { previous } = period;
+    const { method, customerId, weekday } = filters;
 
     const [
       paymentRows,
@@ -285,27 +297,39 @@ export const dashboardService = {
       openByDueDate,
       notificationRows,
       remindedRows,
+      customer,
     ] = await Promise.all([
-      analyticsRepository.paymentsByDay(previous.from, period.to),
-      analyticsRepository.paymentsByMethod(period.from, period.to),
-      analyticsRepository.topPayers(period.from, period.to, TOP_PAYERS),
-      analyticsRepository.issuedByDay(previous.from, period.to),
-      analyticsRepository.dueByDay(previous.from, period.to),
+      // Weekday is applied below, in memory: the weekday breakdown needs every day.
+      analyticsRepository.paymentsByDay(previous.from, period.to, { method, customerId }),
+      analyticsRepository.paymentsByMethod(period.from, period.to, { customerId, weekday }),
+      analyticsRepository.topPayers(period.from, period.to, TOP_PAYERS, { method, weekday }),
+      analyticsRepository.issuedByDay(previous.from, period.to, customerId),
+      analyticsRepository.dueByDay(previous.from, period.to, customerId),
       analyticsRepository.customersCreatedByDay(previous.from, period.to, env.APP_TIMEZONE),
       receivableRepository.statusTotals(),
       analyticsRepository.countCustomers(),
       analyticsRepository.openBalancesByDueDate(),
-      analyticsRepository.notificationsByDay(previous.from, period.to, env.APP_TIMEZONE),
+      analyticsRepository.notificationsByDay(
+        previous.from,
+        period.to,
+        env.APP_TIMEZONE,
+        customerId,
+      ),
       analyticsRepository.remindedReceivables(
         previous.from,
         period.from,
         period.to,
         PAID_AFTER_REMINDER_DAYS,
         env.APP_TIMEZONE,
+        customerId,
       ),
+      customerId ? customerRepository.findById(customerId) : null,
     ]);
 
-    const payments = toDailyPayments(paymentRows);
+    const allWeekdays = toDailyPayments(paymentRows);
+    const payments = weekday
+      ? allWeekdays.filter((row) => isoWeekday(row.day) === weekday)
+      : allWeekdays;
     const issued = issuedRows.map((row) => ({
       day: row.issueDate,
       amount: toNumber(row._sum.totalAmount),
@@ -422,17 +446,22 @@ export const dashboardService = {
         PAYMENT_METHODS,
         methodRows.map((row) => ({
           key: row.method,
-          amount: toNumber(row._sum.amount),
-          count: row._count._all,
+          amount: toNumber(row.amount),
+          count: row.count,
         })),
       ).map(({ key, amount, count }) => ({ method: key, amount, count })),
-      byWeekday: weekdayTotals(payments, current),
+      byWeekday: weekdayTotals(allWeekdays, current),
       topPayers: payerRows.map((row) => ({
         customerId: row.customerId,
         name: row.name,
         amount: money(row.amount),
         payments: row.payments,
       })),
+      filters: {
+        method: method ?? null,
+        customer: customerId ? { id: customerId, name: customer?.name ?? null } : null,
+        weekday: weekday ?? null,
+      },
       generatedAt: new Date().toISOString(),
     };
   },

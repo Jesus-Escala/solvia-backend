@@ -32,7 +32,11 @@ export const dashboardRouter = Router();
  *     description: >
  *       Aggregated in SQL. The previous period is the same number of days immediately before
  *       `from`. Defaults to the current month to date. Ranges longer than 3 years or with
- *       `from` after `to` are rejected with `VALIDATION_ERROR`.
+ *       `from` after `to` are rejected with `VALIDATION_ERROR`. Cross-filters (`method`,
+ *       `customerId`, `weekday`) apply to payment data; receivables and reminders only honour
+ *       `customerId`; new customers and the snapshot ignore them. Each breakdown ignores its own
+ *       dimension (`byMethod` ignores `method`, `byWeekday` ignores `weekday`, `topPayers` ignores
+ *       `customerId`) so the other options stay visible.
  *     parameters:
  *       - { in: query, name: from, schema: { type: string, format: date }, description: 'Inclusive (YYYY-MM-DD). Default: first day of the month of `to`' }
  *       - { in: query, name: to, schema: { type: string, format: date }, description: 'Inclusive (YYYY-MM-DD). Default: today (APP_TIMEZONE)' }
@@ -40,6 +44,9 @@ export const dashboardRouter = Router();
  *         name: granularity
  *         schema: { type: string, enum: [day, week, month] }
  *         description: 'Default: day up to 31 days, ISO week up to 120 days, month beyond'
+ *       - { in: query, name: method, schema: { type: string, enum: [yape, plin, cash, bank_transfer] }, description: 'Cross-filter: payment method (payment data only)' }
+ *       - { in: query, name: customerId, schema: { type: string, format: uuid }, description: 'Cross-filter: customer (payments, receivables and reminders)' }
+ *       - { in: query, name: weekday, schema: { type: integer, minimum: 1, maximum: 7 }, description: 'Cross-filter: ISO weekday of the payment, 1 = Monday (payment data only)' }
  *     responses:
  *       200:
  *         description: Analytics

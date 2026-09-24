@@ -20,7 +20,6 @@ vi.mock('../src/lib/prisma', async () => {
         return Promise.resolve([]);
       },
       // Model queries are scoped by the extension (not under test here).
-      payment: { groupBy: () => Promise.resolve([]) },
       receivable: { groupBy: () => Promise.resolve([]) },
       customer: { count: () => Promise.resolve(0) },
     },
@@ -34,6 +33,7 @@ const to = new Date(Date.UTC(2026, 8, 30));
 /** Every raw query of the repository, with representative arguments. */
 const RAW_QUERIES: Record<string, () => Promise<unknown>> = {
   paymentsByDay: () => analyticsRepository.paymentsByDay(from, to),
+  paymentsByMethod: () => analyticsRepository.paymentsByMethod(from, to),
   topPayers: () => analyticsRepository.topPayers(from, to, 8),
   customersCreatedByDay: () => analyticsRepository.customersCreatedByDay(from, to, 'America/Lima'),
   notificationsByDay: () => analyticsRepository.notificationsByDay(from, to, 'America/Lima'),
@@ -71,6 +71,27 @@ describe('analytics repository tenant isolation', () => {
       expect(rawQueries).toHaveLength(0);
     },
   );
+
+  it('adds the cross-filters as bound parameters, next to the tenant filter', async () => {
+    const customerId = '22222222-2222-4222-8222-222222222222';
+    await runWithTenant(TENANT, async () => {
+      await analyticsRepository.paymentsByDay(from, to, { method: 'yape', customerId, weekday: 3 });
+      await analyticsRepository.topPayers(from, to, 8, { method: 'plin' });
+      await analyticsRepository.notificationsByDay(from, to, 'America/Lima', customerId);
+      await analyticsRepository.remindedReceivables(from, from, to, 7, 'America/Lima', customerId);
+    });
+    const [payments, payers, notifications, reminded] = rawQueries;
+    expect(payments!.text).toMatch(/p\."method" = \$\d+::"PaymentMethod"/);
+    expect(payments!.text).toMatch(/r\."customerId" = \$\d+/);
+    expect(payments!.text).toMatch(/EXTRACT\(ISODOW FROM p\."date"\) = \$\d+::int/);
+    expect(payments!.values).toEqual(expect.arrayContaining([TENANT, 'yape', customerId, 3]));
+    expect(payers!.values).toContain('plin');
+    expect(payers!.text).not.toMatch(/customerId" = /);
+    for (const sql of [notifications!, reminded!]) {
+      expect(sql.text).toMatch(/r\."customerId" = \$\d+/);
+      expect(sql.values).toContain(customerId);
+    }
+  });
 
   it('covers every raw query of the repository', () => {
     const source = Object.entries(analyticsRepository)

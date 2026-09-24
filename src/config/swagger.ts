@@ -404,6 +404,26 @@ export const openApiSpec = swaggerJsdoc({
                 },
               },
             },
+            filters: {
+              type: 'object',
+              description: 'Cross-filters applied (null when not filtering)',
+              properties: {
+                method: {
+                  type: 'string',
+                  nullable: true,
+                  enum: ['yape', 'plin', 'cash', 'bank_transfer'],
+                },
+                customer: {
+                  type: 'object',
+                  nullable: true,
+                  properties: {
+                    id: { type: 'string', format: 'uuid' },
+                    name: { type: 'string', nullable: true },
+                  },
+                },
+                weekday: { type: 'integer', nullable: true, minimum: 1, maximum: 7 },
+              },
+            },
             byMethod: {
               type: 'array',
               items: {

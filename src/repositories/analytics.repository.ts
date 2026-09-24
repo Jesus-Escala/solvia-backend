@@ -1,4 +1,9 @@
-import type { MessageTemplateType, NotificationStatus, Prisma } from '@prisma/client';
+import {
+  Prisma,
+  type MessageTemplateType,
+  type NotificationStatus,
+  type PaymentMethod,
+} from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { requireTenantId } from '../lib/tenantContext';
 import { sqlDate, sqlLocalDay, sqlLocalDayWithin } from './sql';
@@ -15,9 +20,31 @@ import { sqlDate, sqlLocalDay, sqlLocalDayWithin } from './sql';
 
 type Decimal = Prisma.Decimal | null;
 
+/** Optional cross-filters of the period analytics (each query applies the ones it supports). */
+export interface PaymentFilters {
+  method?: PaymentMethod;
+  customerId?: string;
+  /** ISO weekday of the payment date (1 = Monday … 7 = Sunday). */
+  weekday?: number;
+}
+
+/** `AND …` conditions for a query over `payments p JOIN receivables r`. */
+function paymentConditions({ method, customerId, weekday }: PaymentFilters): Prisma.Sql {
+  const conditions: Prisma.Sql[] = [];
+  if (method) conditions.push(Prisma.sql`AND p."method" = ${method}::"PaymentMethod"`);
+  if (customerId) conditions.push(Prisma.sql`AND r."customerId" = ${customerId}`);
+  if (weekday) conditions.push(Prisma.sql`AND EXTRACT(ISODOW FROM p."date") = ${weekday}::int`);
+  return conditions.length > 0 ? Prisma.join(conditions, ' ') : Prisma.empty;
+}
+
+/** `AND r."customerId" = …` when filtering by customer. */
+function customerCondition(customerId?: string): Prisma.Sql {
+  return customerId ? Prisma.sql`AND r."customerId" = ${customerId}` : Prisma.empty;
+}
+
 export const analyticsRepository = {
   /** Payments per calendar day within [from, to]: amount, count and summed days since issue. */
-  paymentsByDay(from: Date, to: Date) {
+  paymentsByDay(from: Date, to: Date, filters: PaymentFilters = {}) {
     const tenantId = requireTenantId();
     return prisma.$queryRaw<
       Array<{ day: Date; amount: Decimal; count: number; daysToPay: number | null }>
@@ -30,22 +57,27 @@ export const analyticsRepository = {
       JOIN "receivables" r ON r."id" = p."receivableId"
       WHERE r."tenantId" = ${tenantId}
         AND p."date" BETWEEN ${sqlDate(from)} AND ${sqlDate(to)}
+        ${paymentConditions(filters)}
       GROUP BY p."date"
     `;
   },
 
-  /** Payments within [from, to] grouped by method (scoped by the extension). */
-  paymentsByMethod(from: Date, to: Date) {
-    return prisma.payment.groupBy({
-      by: ['method'],
-      where: { date: { gte: from, lte: to } },
-      _sum: { amount: true },
-      _count: { _all: true },
-    });
+  /** Payments within [from, to] grouped by method. */
+  paymentsByMethod(from: Date, to: Date, filters: PaymentFilters = {}) {
+    const tenantId = requireTenantId();
+    return prisma.$queryRaw<Array<{ method: PaymentMethod; amount: Decimal; count: number }>>`
+      SELECT p."method" AS "method", SUM(p."amount") AS "amount", COUNT(*)::int AS "count"
+      FROM "payments" p
+      JOIN "receivables" r ON r."id" = p."receivableId"
+      WHERE r."tenantId" = ${tenantId}
+        AND p."date" BETWEEN ${sqlDate(from)} AND ${sqlDate(to)}
+        ${paymentConditions(filters)}
+      GROUP BY p."method"
+    `;
   },
 
   /** Customers with the largest payments within [from, to]. */
-  topPayers(from: Date, to: Date, limit: number) {
+  topPayers(from: Date, to: Date, limit: number, filters: PaymentFilters = {}) {
     const tenantId = requireTenantId();
     return prisma.$queryRaw<
       Array<{ customerId: string; name: string; amount: Decimal; payments: number }>
@@ -57,6 +89,7 @@ export const analyticsRepository = {
       JOIN "customers" c ON c."id" = r."customerId"
       WHERE r."tenantId" = ${tenantId}
         AND p."date" BETWEEN ${sqlDate(from)} AND ${sqlDate(to)}
+        ${paymentConditions(filters)}
       GROUP BY c."id", c."name"
       ORDER BY "amount" DESC, c."name" ASC, c."id" ASC
       LIMIT ${limit}
@@ -64,20 +97,20 @@ export const analyticsRepository = {
   },
 
   /** Receivables issued per day within [from, to] (scoped by the extension). */
-  issuedByDay(from: Date, to: Date) {
+  issuedByDay(from: Date, to: Date, customerId?: string) {
     return prisma.receivable.groupBy({
       by: ['issueDate'],
-      where: { issueDate: { gte: from, lte: to } },
+      where: { issueDate: { gte: from, lte: to }, customerId },
       _sum: { totalAmount: true },
       _count: { _all: true },
     });
   },
 
   /** Receivables due per day within [from, to] with their paid amounts (scoped by the extension). */
-  dueByDay(from: Date, to: Date) {
+  dueByDay(from: Date, to: Date, customerId?: string) {
     return prisma.receivable.groupBy({
       by: ['dueDate'],
-      where: { dueDate: { gte: from, lte: to } },
+      where: { dueDate: { gte: from, lte: to }, customerId },
       _sum: { totalAmount: true, paidAmount: true },
     });
   },
@@ -95,7 +128,7 @@ export const analyticsRepository = {
   },
 
   /** Notification send attempts per local day (in `timeZone`) of `sentAt`, status and type. */
-  notificationsByDay(from: Date, to: Date, timeZone: string) {
+  notificationsByDay(from: Date, to: Date, timeZone: string, customerId?: string) {
     const tenantId = requireTenantId();
     return prisma.$queryRaw<
       Array<{
@@ -111,6 +144,7 @@ export const analyticsRepository = {
       JOIN "receivables" r ON r."id" = n."receivableId"
       WHERE r."tenantId" = ${tenantId}
         AND ${sqlLocalDayWithin('n."sentAt"', from, to, timeZone)}
+        ${customerCondition(customerId)}
       GROUP BY 1, 2, 3
     `;
   },
@@ -127,6 +161,7 @@ export const analyticsRepository = {
     to: Date,
     withinDays: number,
     timeZone: string,
+    customerId?: string,
   ) {
     const tenantId = requireTenantId();
     return prisma.$queryRaw<Array<{ current: boolean; reminded: number; paid: number }>>`
@@ -138,6 +173,7 @@ export const analyticsRepository = {
           AND n."status" = 'sent'
           AND n."templateType" IN ('pre_due_reminder', 'due_reminder', 'overdue_reminder')
           AND ${sqlLocalDayWithin('n."sentAt"', previousFrom, to, timeZone)}
+          ${customerCondition(customerId)}
       ),
       outcomes AS (
         SELECT rm."receivableId", rm."day" >= ${sqlDate(from)} AS "current",

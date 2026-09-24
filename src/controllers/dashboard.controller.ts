@@ -6,7 +6,7 @@ import { dashboardService } from '../services/dashboard.service';
 import { monthlyReportService } from '../services/monthlyReport.service';
 import { notificationService } from '../services/notification.service';
 import { reminderService } from '../services/reminder.service';
-import { analyticsQuerySchema } from '../validators/analytics.schemas';
+import { analyticsFiltersSchema, analyticsQuerySchema } from '../validators/analytics.schemas';
 import { paginationSchema } from '../validators/common.schemas';
 import {
   cashFlowQuerySchema,
@@ -33,7 +33,8 @@ export const dashboardController = {
 
   async analytics(req: Request, res: Response) {
     const period = analyticsQuerySchema(todayInTimezone(env.APP_TIMEZONE)).parse(req.query);
-    res.json(await dashboardService.analytics(period));
+    const filters = analyticsFiltersSchema.parse(req.query);
+    res.json(await dashboardService.analytics(period, filters));
   },
 
   async concentration(req: Request, res: Response) {

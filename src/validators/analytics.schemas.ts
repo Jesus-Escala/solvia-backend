@@ -1,3 +1,4 @@
+import { PaymentMethod } from '@prisma/client';
 import { z } from 'zod';
 import {
   GRANULARITIES,
@@ -35,6 +36,18 @@ function resolveOrFail(
 export function analyticsQuerySchema(today: Date) {
   return periodQueryFieldsSchema.transform((input, ctx) => resolveOrFail(input, today, ctx));
 }
+
+/**
+ * Cross-filters of `/dashboard/analytics`: payment method, customer and ISO weekday of the
+ * payment (1 = Monday … 7 = Sunday). All optional.
+ */
+export const analyticsFiltersSchema = z.object({
+  method: z.enum(PaymentMethod).optional(),
+  customerId: z.uuid().optional(),
+  weekday: z.coerce.number().int().min(1).max(7).optional(),
+});
+
+export type AnalyticsFilters = z.infer<typeof analyticsFiltersSchema>;
 
 /** Optional period of `/admin/overview`: null when none of the parameters is given. */
 export function optionalPeriodQuerySchema(today: Date) {
