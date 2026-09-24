@@ -114,17 +114,75 @@ function renderToBuffer(build: (doc: PdfDoc) => void): Promise<Buffer> {
 }
 
 /**
- * Solvia mark geometry (64x64): Soli the owl + gold S/ coin. Same values as the web logo
- * (src/ui/brand/owlGeometry.ts in the frontend repositories).
+ * Solvia mark: Soli's illustrated face (the same drawing as the web mascot and logo,
+ * src/ui/brand/Mascot.tsx in the frontends) on the teal tile, with the gold S/ coin.
+ * Face paths are in the mascot's 120x131 view coordinates.
  */
-const LOGO = {
-  head: 'M13 17C13.5 14.5 16 13.8 18 15L24 19.6C26.5 18.9 29.2 18.5 32 18.5C34.8 18.5 37.5 18.9 40 19.6L46 15C48 13.8 50.5 14.5 51 17L51.5 29.5C52.5 32 53 34.7 53 37.5C53 47.7 43.6 54.5 32 54.5C20.4 54.5 11 47.7 11 37.5C11 34.7 11.5 32 12.5 29.5Z',
-  brows: ['M17 27.4Q23.5 23.6 29.6 26.4', 'M34.4 26.4Q40.5 23.6 47 27.4'],
-  beak: 'M32 41.6C30.4 41.6 29 42.6 29 43.9C29 45.6 30.8 47.3 32 48C33.2 47.3 35 45.6 35 43.9C35 42.6 33.6 41.6 32 41.6Z',
-  coinS:
-    'M50.4 45.6C49.7 44.8 48.8 44.4 47.7 44.4C46.1 44.4 45.1 45.2 45.1 46.4C45.1 47.7 46.3 48 47.8 48.3C49.4 48.6 50.5 49 50.5 50.3C50.5 51.5 49.4 52.3 47.8 52.3C46.6 52.3 45.7 51.9 45.1 51.1',
-  coinSlash: 'M54.4 43.8L52 54',
+const FACE = {
+  head: 'M60 25.5C68 25.5 75 26.6 80.8 29.2C83 25.8 86.4 23.4 89.8 23.6C93.4 23.8 95 26.8 94.8 30.6C94.6 34.6 94 38.4 95.2 42.4C97.3 47.4 98.2 52.5 98.2 58C98.2 75.4 81.4 87.4 60 87.4C38.6 87.4 21.8 75.4 21.8 58C21.8 52.5 22.7 47.4 24.8 42.4C26 38.4 25.4 34.6 25.2 30.6C25 26.8 26.6 23.8 30.2 23.6C33.6 23.4 37 25.8 39.2 29.2C45 26.6 52 25.5 60 25.5Z',
+  beak: 'M60 67.6C57.3 67.6 55.3 69.3 55.3 71.4C55.3 74.2 58.2 76.8 60 77.8C61.8 76.8 64.7 74.2 64.7 71.4C64.7 69.3 62.7 67.6 60 67.6Z',
+  brows: ['M36.9 43.3Q46.4 37.8 54.9 42.3', 'M65.1 42.3Q73.6 37.8 83.1 43.3'],
+  eyes: [
+    { x: 46.4, y: 60.8 },
+    { x: 73.6, y: 60.8 },
+  ],
+  /** Fits the face (box x 21.8-98.2, y 20.6-87.4) into the 64x64 tile, like <LogoMark>. */
+  transform: { x: -7.19, y: -2.93, scale: 48 / 76.4 },
 };
+const COIN = {
+  s: 'M50.4 45.6C49.7 44.8 48.8 44.4 47.7 44.4C46.1 44.4 45.1 45.2 45.1 46.4C45.1 47.7 46.3 48 47.8 48.3C49.4 48.6 50.5 49 50.5 50.3C50.5 51.5 49.4 52.3 47.8 52.3C46.6 52.3 45.7 51.9 45.1 51.1',
+  slash: 'M54.4 43.8L52 54',
+};
+
+function drawFace(doc: PdfDoc) {
+  const { x, y, scale } = FACE.transform;
+  doc.save();
+  doc.translate(x, y).scale(scale);
+
+  const head = doc.radialGradient(51, 43, 0, 51, 43, 58);
+  head.stop(0, '#ffffff').stop(0.55, '#e6fffa').stop(1, '#a7f3e4');
+  doc.path(FACE.head).fill(head);
+  doc.path(FACE.head).lineWidth(1).strokeOpacity(0.55).stroke('#5eead4');
+  doc.strokeOpacity(1);
+
+  for (const [cx, angle] of [
+    [89.6, 14],
+    [30.4, -14],
+  ] as const) {
+    doc.save();
+    doc.rotate(angle, { origin: [cx, 30] });
+    doc.ellipse(cx, 30, 2.4, 3.8).fillOpacity(0.45).fill('#5eead4');
+    doc.restore();
+  }
+  doc.fillOpacity(1);
+
+  for (const eye of FACE.eyes) {
+    const disc = doc.radialGradient(eye.x, eye.y, 0, eye.x, eye.y, 18.6);
+    disc.stop(0.6, '#ffffff', 0.95).stop(1, '#ffffff', 0);
+    doc.circle(eye.x, eye.y, 18.6).fill(disc);
+  }
+  for (const brow of FACE.brows) {
+    doc.path(brow).lineWidth(2.6).lineCap('round').strokeOpacity(0.75).stroke('#14b8a6');
+  }
+  doc.strokeOpacity(1);
+  for (const cx of [33, 87]) {
+    const blush = doc.radialGradient(cx, 73, 0, cx, 73, 7.5);
+    blush.stop(0, '#fb7185', 0.55).stop(1, '#fb7185', 0);
+    doc.ellipse(cx, 73, 7.5, 4.8).fill(blush);
+  }
+  for (const eye of FACE.eyes) {
+    doc.circle(eye.x, eye.y, 12.6).fill('#ffffff');
+    const pupil = doc.radialGradient(eye.x - 2, eye.y - 2, 0, eye.x, eye.y + 1, 8.6);
+    pupil.stop(0, '#1f5f63').stop(0.6, '#0e3440').stop(1, '#081c24');
+    doc.circle(eye.x, eye.y + 1, 8.6).fill(pupil);
+    doc.circle(eye.x + 3, eye.y - 2.6, 3.1).fill('#ffffff');
+    doc.circle(eye.x - 3, eye.y + 4.2, 1.4).fill('#ffffff');
+  }
+  const beak = doc.linearGradient(60, 67.6, 60, 77.8);
+  beak.stop(0, '#fcd34d').stop(1, '#f59e0b');
+  doc.path(FACE.beak).fill(beak);
+  doc.restore();
+}
 
 /** Draws the Solvia logo mark at (x, y) with the given size. */
 function drawLogoMark(doc: PdfDoc, x: number, y: number, size: number) {
@@ -133,26 +191,12 @@ function drawLogoMark(doc: PdfDoc, x: number, y: number, size: number) {
   const background = doc.linearGradient(4, 2, 60, 62);
   background.stop(0, '#34d399').stop(0.5, '#0d9488').stop(1, '#0c3a47');
   doc.roundedRect(0, 0, 64, 64, 18).fill(background);
-  doc.path(LOGO.head).fill('#f0fdfa');
-  for (const brow of LOGO.brows) {
-    doc.path(brow).lineWidth(2.3).lineCap('round').stroke('#0d9488');
-  }
-  doc.fillOpacity(0.5);
-  doc.ellipse(15.8, 45, 3.3, 2).fill('#fb7185');
-  doc.ellipse(48.2, 45, 3.3, 2).fill('#fb7185');
-  doc.fillOpacity(1);
-  for (const cx of [23.5, 40.5]) {
-    doc.circle(cx, 38, 9.2).fill('#a7f3d0');
-    doc.circle(cx, 38, 6.4).fill('#0b2530');
-    doc.circle(cx + 2.2, 35.7, 2.3).fill('#ffffff');
-    doc.circle(cx - 2.1, 40.3, 1).fill('#ffffff');
-  }
-  doc.path(LOGO.beak).fill('#f59e0b');
+  drawFace(doc);
   const gold = doc.linearGradient(40, 40, 58, 58);
   gold.stop(0, '#fde68a').stop(1, '#f59e0b');
   doc.circle(49, 49, 9.5).lineWidth(2.5).fillAndStroke(gold, '#0c3a47');
-  doc.path(LOGO.coinS).lineWidth(1.8).lineCap('round').lineJoin('round').stroke('#92400e');
-  doc.path(LOGO.coinSlash).lineWidth(1.8).lineCap('round').stroke('#92400e');
+  doc.path(COIN.s).lineWidth(1.8).lineCap('round').lineJoin('round').stroke('#92400e');
+  doc.path(COIN.slash).lineWidth(1.8).lineCap('round').stroke('#92400e');
   doc.restore();
 }
 
