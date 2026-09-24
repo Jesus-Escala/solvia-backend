@@ -18,10 +18,11 @@ const today = () => todayInTimezone(env.APP_TIMEZONE);
 
 export const receivableService = {
   async list(query: ListReceivablesQuery) {
-    // The open balance is total - paid: ordered in SQL, the other columns through Prisma.
+    // Open balance (total - paid) and latest payment method are ordered in SQL; the other
+    // columns through Prisma.
     const [receivables, total] =
-      query.sortBy === 'outstanding'
-        ? await receivableRepository.findManyByOutstanding(query)
+      query.sortBy === 'outstanding' || query.sortBy === 'paymentMethod'
+        ? await receivableRepository.findManyByRawOrder(query, query.sortBy)
         : await receivableRepository.findMany(query);
     const rows = receivables.map(({ payments, ...receivable }) => ({
       ...toReceivableDto(receivable),

@@ -51,6 +51,7 @@ export const listReceivablesQuerySchema = paginationSchema.extend({
       'issueDate',
       'totalAmount',
       'outstanding',
+      'paymentMethod',
       'description',
       'status',
       'customer',

@@ -1,4 +1,5 @@
-import { Prisma, type ReceivableStatus } from '@prisma/client';
+import { Prisma, type PaymentMethod, type ReceivableStatus } from '@prisma/client';
+import { currentLocale, type Locale } from '../lib/locale';
 import { prisma } from '../lib/prisma';
 import { requireTenantId } from '../lib/tenantContext';
 import type { ListReceivablesQuery } from '../validators/receivable.schemas';
@@ -58,10 +59,35 @@ function buildOrderBy(
 const likePattern = (search: string) => `%${search.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
 
 /**
- * Ids of one page ordered by open balance (total - paid), which Prisma cannot order by. Same
- * filters as `buildWhere`, with the tenant filter explicit (raw queries skip the tenant scope).
+ * Position of each payment method in alphabetical order of its label in each language, so the
+ * list sorts by what the user reads ("Efectivo, Plin, Transferencia, Yape"), not by the code.
  */
-function idsByOutstanding(query: ListReceivablesQuery) {
+const METHOD_ORDER: Record<Locale, PaymentMethod[]> = {
+  es: ['cash', 'plin', 'bank_transfer', 'yape'],
+  en: ['bank_transfer', 'cash', 'plin', 'yape'],
+};
+
+/** Sort keys Prisma cannot express: the open balance and the method of the latest payment. */
+function rawOrder(sortBy: 'outstanding' | 'paymentMethod'): Prisma.Sql {
+  if (sortBy === 'outstanding') return Prisma.sql`(r."totalAmount" - r."paidAmount")`;
+  const cases = METHOD_ORDER[currentLocale()].map(
+    (method, index) => Prisma.sql`WHEN ${method} THEN ${index}`,
+  );
+  return Prisma.sql`(
+    SELECT CASE p."method"::text ${Prisma.join(cases, ' ')} END
+    FROM "payments" p
+    WHERE p."receivableId" = r."id"
+    ORDER BY p."date" DESC, p."id" DESC
+    LIMIT 1
+  )`;
+}
+
+/**
+ * Ids of one page ordered by a computed key (see `rawOrder`). Same filters as `buildWhere`,
+ * with the tenant filter explicit (raw queries skip the tenant scope). Receivables without a
+ * value (no payments yet) always go last.
+ */
+function idsByRawOrder(query: ListReceivablesQuery, sortBy: 'outstanding' | 'paymentMethod') {
   const conditions: Prisma.Sql[] = [Prisma.sql`r."tenantId" = ${requireTenantId()}`];
   if (query.status?.length) {
     conditions.push(Prisma.sql`r."status"::text IN (${Prisma.join(query.status)})`);
@@ -79,15 +105,15 @@ function idsByOutstanding(query: ListReceivablesQuery) {
     FROM "receivables" r
     JOIN "customers" c ON c."id" = r."customerId"
     WHERE ${Prisma.join(conditions, ' AND ')}
-    ORDER BY (r."totalAmount" - r."paidAmount") ${direction}, r."createdAt" ASC, r."id" ASC
+    ORDER BY ${rawOrder(sortBy)} ${direction} NULLS LAST, r."createdAt" ASC, r."id" ASC
     LIMIT ${query.pageSize} OFFSET ${(query.page - 1) * query.pageSize}
   `;
 }
 
 export const receivableRepository = {
-  async findManyByOutstanding(query: ListReceivablesQuery) {
+  async findManyByRawOrder(query: ListReceivablesQuery, sortBy: 'outstanding' | 'paymentMethod') {
     const [ids, total] = await Promise.all([
-      idsByOutstanding(query),
+      idsByRawOrder(query, sortBy),
       prisma.receivable.count({ where: buildWhere(query) }),
     ]);
     const rows = await prisma.receivable.findMany({
