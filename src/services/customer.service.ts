@@ -44,14 +44,14 @@ function balanceSummary(receivables: ReceivableBalanceRow[]) {
 export const customerService = {
   async list(query: ListCustomersQuery) {
     // Risk and balances are computed on the fly, so filtering or sorting by them needs every match.
-    const inMemory =
-      Boolean(query.risk) || query.sortBy === 'outstanding' || query.sortBy === 'risk';
+    const computed = ['outstanding', 'risk', 'open', 'overdue'].includes(query.sortBy);
+    const inMemory = Boolean(query.risk) || computed;
     const [customers, total] = await customerRepository.findMany({
       search: query.search,
       pagination: inMemory ? undefined : query,
       orderBy: inMemory
         ? undefined
-        : { field: query.sortBy as 'name' | 'createdAt', dir: query.sortDir },
+        : { field: query.sortBy as 'name' | 'phone' | 'createdAt', dir: query.sortDir },
     });
 
     const rows = customers.map(({ receivables, ...customer }) => ({
@@ -70,9 +70,15 @@ export const customerService = {
         ? row.summary.totalOutstanding
         : query.sortBy === 'risk'
           ? row.risk.points
-          : query.sortBy === 'createdAt'
-            ? row.createdAt
-            : row.name.toLowerCase();
+          : query.sortBy === 'open'
+            ? row.summary.openReceivables
+            : query.sortBy === 'overdue'
+              ? row.summary.overdueReceivables
+              : query.sortBy === 'createdAt'
+                ? row.createdAt
+                : query.sortBy === 'phone'
+                  ? row.phone
+                  : row.name.toLowerCase();
     const filtered = rows
       .filter((row) => !query.risk || row.risk.level === query.risk)
       .sort((a, b) => {

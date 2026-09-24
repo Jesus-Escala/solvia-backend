@@ -46,7 +46,16 @@ export const listReceivablesQuerySchema = paginationSchema.extend({
   dueFrom: dateOnlySchema.optional(),
   dueTo: dateOnlySchema.optional(),
   sortBy: z
-    .enum(['dueDate', 'issueDate', 'totalAmount', 'description', 'status', 'customer', 'createdAt'])
+    .enum([
+      'dueDate',
+      'issueDate',
+      'totalAmount',
+      'outstanding',
+      'description',
+      'status',
+      'customer',
+      'createdAt',
+    ])
     .default('dueDate'),
   sortDir: sortDirSchema,
 });

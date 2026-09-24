@@ -29,6 +29,10 @@ export const listAccessRequestsQuerySchema = paginationSchema.extend({
   status: accessRequestStatusSchema.optional(),
   /** Matches business name, contact name, email or phone (case-insensitive). */
   search: z.string().trim().max(120).optional(),
+  sortBy: z
+    .enum(['businessName', 'contactName', 'message', 'status', 'createdAt'])
+    .default('createdAt'),
+  sortDir: z.enum(['asc', 'desc']).default('desc'),
 });
 
 /** Converting happens only by creating the tenant (`POST /admin/tenants`). */

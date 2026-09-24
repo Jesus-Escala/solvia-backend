@@ -37,6 +37,7 @@ export const accessRequestService = {
     const [rows, total] = await accessRequestRepository.findMany(
       { status: query.status, search: query.search },
       query,
+      { field: query.sortBy, dir: query.sortDir },
     );
     return paginate(rows.map(toAccessRequestDto), total, query);
   },

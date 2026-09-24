@@ -15,7 +15,19 @@ export const listTenantsQuerySchema = paginationSchema.extend({
   search: z.string().trim().max(120).optional(),
   plan: planSchema.optional(),
   status: tenantStatusSchema.optional(),
-  sortBy: z.enum(['name', 'createdAt', 'outstanding', 'customers', 'users']).default('createdAt'),
+  sortBy: z
+    .enum([
+      'name',
+      'plan',
+      'status',
+      'createdAt',
+      'outstanding',
+      'collected',
+      'lastActivity',
+      'customers',
+      'users',
+    ])
+    .default('createdAt'),
   sortDir: z.enum(['asc', 'desc']).default('desc'),
 });
 

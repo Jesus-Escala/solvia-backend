@@ -32,7 +32,9 @@ export const updateCustomerSchema = createCustomerSchema
 export const listCustomersQuerySchema = paginationSchema.extend({
   search: z.string().trim().max(120).optional(),
   risk: z.enum(['low', 'medium', 'high']).optional(),
-  sortBy: z.enum(['name', 'createdAt', 'outstanding', 'risk']).default('name'),
+  sortBy: z
+    .enum(['name', 'phone', 'createdAt', 'outstanding', 'risk', 'open', 'overdue'])
+    .default('name'),
   sortDir: sortDirSchema,
 });
 

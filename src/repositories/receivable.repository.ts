@@ -1,7 +1,8 @@
-import type { Prisma, ReceivableStatus } from '@prisma/client';
+import { Prisma, type ReceivableStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { requireTenantId } from '../lib/tenantContext';
 import type { ListReceivablesQuery } from '../validators/receivable.schemas';
+import { sqlDate } from './sql';
 import type { DbClient } from './types';
 
 export const customerSummarySelect = {
@@ -53,7 +54,54 @@ function buildOrderBy(
   return [primary, { createdAt: 'asc' }, { id: 'asc' }];
 }
 
+/** `ILIKE` pattern for a user search: `%` and `_` are matched literally. */
+const likePattern = (search: string) => `%${search.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+
+/**
+ * Ids of one page ordered by open balance (total - paid), which Prisma cannot order by. Same
+ * filters as `buildWhere`, with the tenant filter explicit (raw queries skip the tenant scope).
+ */
+function idsByOutstanding(query: ListReceivablesQuery) {
+  const conditions: Prisma.Sql[] = [Prisma.sql`r."tenantId" = ${requireTenantId()}`];
+  if (query.status?.length) {
+    conditions.push(Prisma.sql`r."status"::text IN (${Prisma.join(query.status)})`);
+  }
+  if (query.customerId) conditions.push(Prisma.sql`r."customerId" = ${query.customerId}`);
+  if (query.search) {
+    const pattern = likePattern(query.search);
+    conditions.push(Prisma.sql`(r."description" ILIKE ${pattern} OR c."name" ILIKE ${pattern})`);
+  }
+  if (query.dueFrom) conditions.push(Prisma.sql`r."dueDate" >= ${sqlDate(query.dueFrom)}`);
+  if (query.dueTo) conditions.push(Prisma.sql`r."dueDate" <= ${sqlDate(query.dueTo)}`);
+  const direction = Prisma.raw(query.sortDir === 'desc' ? 'DESC' : 'ASC');
+  return prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT r."id"
+    FROM "receivables" r
+    JOIN "customers" c ON c."id" = r."customerId"
+    WHERE ${Prisma.join(conditions, ' AND ')}
+    ORDER BY (r."totalAmount" - r."paidAmount") ${direction}, r."createdAt" ASC, r."id" ASC
+    LIMIT ${query.pageSize} OFFSET ${(query.page - 1) * query.pageSize}
+  `;
+}
+
 export const receivableRepository = {
+  async findManyByOutstanding(query: ListReceivablesQuery) {
+    const [ids, total] = await Promise.all([
+      idsByOutstanding(query),
+      prisma.receivable.count({ where: buildWhere(query) }),
+    ]);
+    const rows = await prisma.receivable.findMany({
+      where: { id: { in: ids.map((row) => row.id) } },
+      include: {
+        customer: { select: customerSummarySelect },
+        payments: { select: { method: true }, orderBy: { date: 'desc' } },
+      },
+    });
+    const position = new Map(ids.map((row, index) => [row.id, index]));
+    rows.sort((a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0));
+    return [rows, total] as const;
+  },
+
   findMany(query: ListReceivablesQuery) {
     const where = buildWhere(query);
     return prisma.$transaction([

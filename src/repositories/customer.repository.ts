@@ -36,7 +36,7 @@ export const customerRepository = {
   findMany(options: {
     search?: string;
     pagination?: Pagination;
-    orderBy?: { field: 'name' | 'createdAt'; dir: SortDir };
+    orderBy?: { field: 'name' | 'phone' | 'createdAt'; dir: SortDir };
   }) {
     const where = searchFilter(options.search);
     const { pagination, orderBy = { field: 'name', dir: 'asc' } } = options;

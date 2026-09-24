@@ -40,13 +40,28 @@ export const accessRequestRepository = {
       .then((count) => count > 0);
   },
 
-  /** Newest first. */
-  findMany(filters: AccessRequestFilters, pagination: { page: number; pageSize: number }) {
+  /** Sorted by `orderBy` (newest first by default), then by id so pages never overlap. */
+  findMany(
+    filters: AccessRequestFilters,
+    pagination: { page: number; pageSize: number },
+    orderBy: {
+      field: 'businessName' | 'contactName' | 'message' | 'status' | 'createdAt';
+      dir: 'asc' | 'desc';
+    } = {
+      field: 'createdAt',
+      dir: 'desc',
+    },
+  ) {
     const where = buildWhere(filters);
     return basePrisma.$transaction([
       basePrisma.accessRequest.findMany({
         where,
-        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        orderBy: [
+          orderBy.field === 'message'
+            ? { message: { sort: orderBy.dir, nulls: 'last' } }
+            : { [orderBy.field]: orderBy.dir },
+          { id: 'asc' },
+        ],
         skip: (pagination.page - 1) * pagination.pageSize,
         take: pagination.pageSize,
       }),

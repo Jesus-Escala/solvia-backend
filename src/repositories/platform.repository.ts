@@ -14,7 +14,7 @@ export interface TenantFilters {
   status?: TenantStatus;
 }
 
-export type TenantOrderField = 'name' | 'createdAt' | 'users' | 'customers';
+export type TenantOrderField = 'name' | 'plan' | 'status' | 'createdAt' | 'users' | 'customers';
 
 const tenantCountSelect = {
   _count: { select: { users: true, customers: true, receivables: true } },

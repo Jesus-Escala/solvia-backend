@@ -21,7 +21,7 @@ import { AppError } from '../errors/AppError';
 import { addDays, addMonths, formatDateOnly, startOfMonth, todayInTimezone } from '../lib/dates';
 import { roundMoney, toNumber } from '../lib/money';
 import { runWithTenant } from '../lib/tenantContext';
-import { platformRepository } from '../repositories/platform.repository';
+import { platformRepository, type TenantOrderField } from '../repositories/platform.repository';
 import { tenantRepository } from '../repositories/tenant.repository';
 import { userRepository } from '../repositories/user.repository';
 import { paginate } from '../validators/common.schemas';
@@ -248,12 +248,12 @@ export const platformService = {
 
   async listTenants(query: ListTenantsQuery) {
     const today = todayInTimezone(env.APP_TIMEZONE);
-    // The outstanding balance is computed, so sorting by it needs every match.
-    const inMemory = query.sortBy === 'outstanding';
+    // Balances and activity are computed, so sorting by them needs every match.
+    const inMemory = ['outstanding', 'collected', 'lastActivity'].includes(query.sortBy);
     const [tenants, total] = await platformRepository.findTenants(
       { search: query.search, plan: query.plan, status: query.status },
       {
-        field: query.sortBy === 'outstanding' ? 'createdAt' : query.sortBy,
+        field: inMemory ? 'createdAt' : (query.sortBy as TenantOrderField),
         dir: inMemory ? 'desc' : query.sortDir,
       },
       inMemory ? undefined : query,
@@ -268,7 +268,18 @@ export const platformService = {
       return paginate(rows, total, query);
     }
 
-    const sorted = sortBy(rows, (row) => row.outstanding, query.sortDir);
+    const sorted = sortBy(
+      rows,
+      (row) =>
+        query.sortBy === 'collected'
+          ? row.collectedLast30Days
+          : query.sortBy === 'lastActivity'
+            ? row.lastActivityAt
+              ? Date.parse(row.lastActivityAt)
+              : 0
+            : row.outstanding,
+      query.sortDir,
+    );
     const start = (query.page - 1) * query.pageSize;
     return paginate(sorted.slice(start, start + query.pageSize), sorted.length, query);
   },
