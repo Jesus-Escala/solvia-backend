@@ -28,7 +28,7 @@ type Cell = string | number | null;
 interface ExportColumn {
   header: string;
   kind: Kind;
-  /** Relative width: PDF columns share the page width in this proportion; Excel uses it ×2.2. */
+  /** Relative width: PDF columns share the page width in this proportion; Excel uses it ×6.5. */
   weight: number;
 }
 
@@ -399,7 +399,7 @@ async function toExcel(layout: Layout, subtitle: string, locale: Locale): Promis
   const dateFormat = locale === 'es' ? 'dd/mm/yyyy' : 'mm/dd/yyyy';
 
   sheet.columns = layout.columns.map((column) => ({
-    width: Math.max(10, Math.round(column.weight * 5)),
+    width: Math.max(13, Math.round(column.weight * 6.5)),
   }));
   sheet.getCell('A1').value = layout.title;
   sheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FF0F766E' } };
