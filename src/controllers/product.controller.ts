@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { productService } from '../services/product.service';
-import { idParamSchema } from '../validators/common.schemas';
+import { idParamSchema, lookupQuerySchema, paginationSchema } from '../validators/common.schemas';
 import {
   createProductSchema,
   listProductsQuerySchema,
@@ -12,9 +12,19 @@ export const productController = {
     res.json(await productService.list(listProductsQuerySchema.parse(req.query)));
   },
 
+  async lookup(req: Request, res: Response) {
+    const { search, limit } = lookupQuerySchema.parse(req.query);
+    res.json({ data: await productService.lookup(search, limit) });
+  },
+
   async get(req: Request, res: Response) {
     const { id } = idParamSchema.parse(req.params);
     res.json(await productService.getById(id));
+  },
+
+  async movements(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    res.json(await productService.movements(id, paginationSchema.parse(req.query)));
   },
 
   async create(req: Request, res: Response) {

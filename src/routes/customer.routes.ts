@@ -46,6 +46,16 @@ customerRouter.post('/', customerController.create);
 
 /**
  * @openapi
+ * /customers/lookup:
+ *   get:
+ *     tags: [Customers]
+ *     summary: Light search for pickers (name, phone digits or document) with what each one owes
+ *     description: No pagination, risk or receivable rows; the balance is computed in SQL. Without text, the ones who owe the most first.
+ *     parameters:
+ *       - { in: query, name: search, schema: { type: string } }
+ *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 20, default: 8 } }
+ *     responses:
+ *       200: { description: '{ data: [{ id, name, phone, outstanding }] }' }
  * /customers/{id}:
  *   parameters:
  *     - { $ref: '#/components/parameters/Id' }
@@ -74,6 +84,7 @@ customerRouter.post('/', customerController.create);
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
+customerRouter.get('/lookup', customerController.lookup);
 customerRouter.get('/:id', customerController.get);
 customerRouter.patch('/:id', customerController.update);
 customerRouter.delete('/:id', requireRole('admin'), customerController.remove);

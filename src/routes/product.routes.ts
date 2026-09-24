@@ -40,6 +40,28 @@ productRouter.use(requireModule('catalog'));
  *             schema: { $ref: '#/components/schemas/Product' }
  *       400: { $ref: '#/components/responses/ValidationError' }
  *       409: { description: PRODUCT_CODE_TAKEN }
+ * /products/lookup:
+ *   get:
+ *     tags: [Catalog]
+ *     summary: Light search for pickers (active products; exact code first, then name prefix)
+ *     description: No pagination or count; uses the name trigram index. Built for search-as-you-type and barcode scanners.
+ *     parameters:
+ *       - { in: query, name: search, schema: { type: string } }
+ *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 20, default: 8 } }
+ *     responses:
+ *       200: { description: '{ data: [{ id, name, code, unit, price, trackStock, stock, minStock }] }' }
+ * /products/{id}/movements:
+ *   get:
+ *     tags: [Catalog]
+ *     summary: Kardex of a product (every stock change, newest first)
+ *     description: Each movement has its signed quantity, the balance it left (balanceAfter) and the part that left without stock (shortage), with the sale it comes from.
+ *     parameters:
+ *       - { $ref: '#/components/parameters/Id' }
+ *       - { $ref: '#/components/parameters/Page' }
+ *       - { $ref: '#/components/parameters/PageSize' }
+ *     responses:
+ *       200: { description: Paginated movements }
+ *       404: { $ref: '#/components/responses/NotFound' }
  * /products/{id}:
  *   get:
  *     tags: [Catalog]
@@ -84,6 +106,8 @@ productRouter.use(requireModule('catalog'));
  */
 productRouter.get('/', productController.list);
 productRouter.post('/', productController.create);
+productRouter.get('/lookup', productController.lookup);
 productRouter.get('/:id', productController.get);
+productRouter.get('/:id/movements', productController.movements);
 productRouter.patch('/:id', productController.update);
 productRouter.delete('/:id', requireRole('admin'), productController.remove);

@@ -48,3 +48,8 @@ export function sqlLocalDayWithin(
   return Prisma.sql`${col} >= ((${sqlDate(from)}::timestamp AT TIME ZONE ${timeZone}) AT TIME ZONE 'UTC')
     AND ${col} < (((${sqlDate(to)} + 1)::timestamp AT TIME ZONE ${timeZone}) AT TIME ZONE 'UTC')`;
 }
+
+/** Escapes `%`, `_` and `\` so user text is matched literally by LIKE / ILIKE (default escape `\`). */
+export function escapeLike(text: string): string {
+  return text.replace(/[\\%_]/g, (char) => `\\${char}`);
+}

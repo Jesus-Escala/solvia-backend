@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { customerService } from '../services/customer.service';
 import { statementService } from '../services/statement.service';
-import { idParamSchema } from '../validators/common.schemas';
+import { idParamSchema, lookupQuerySchema } from '../validators/common.schemas';
 import {
   createCustomerSchema,
   listCustomersQuerySchema,
@@ -12,6 +12,11 @@ export const customerController = {
   async list(req: Request, res: Response) {
     const query = listCustomersQuerySchema.parse(req.query);
     res.json(await customerService.list(query));
+  },
+
+  async lookup(req: Request, res: Response) {
+    const { search, limit } = lookupQuerySchema.parse(req.query);
+    res.json({ data: await customerService.lookup(search, limit) });
   },
 
   async get(req: Request, res: Response) {

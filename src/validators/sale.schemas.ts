@@ -68,6 +68,11 @@ export const listSalesQuerySchema = paginationSchema.extend({
   to: dateOnlySchema.optional(),
   paymentType: z.enum(['cash', 'credit']).optional(),
   status: z.enum(['completed', 'voided']).optional(),
+  /** Only sales that sold some counted product beyond its stock. */
+  shortage: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
 });
 
 export type CreateSaleInput = z.infer<typeof createSaleSchema>;

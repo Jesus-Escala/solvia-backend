@@ -90,6 +90,17 @@ export const customerService = {
     return paginate(filtered.slice(start, start + query.pageSize), filtered.length, query);
   },
 
+  /** Picker search: id, name, phone and what the customer owes (computed in SQL). */
+  async lookup(search: string, limit: number) {
+    const rows = await customerRepository.lookup(search, limit);
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      phone: row.phone,
+      outstanding: roundMoney(toNumber(row.outstanding)),
+    }));
+  },
+
   async getById(id: string) {
     const customer = await customerRepository.findByIdWithHistory(id);
     if (!customer) throw AppError.notFound('Customer');

@@ -56,6 +56,15 @@ export function priceSale(
   return { items, total: roundMoney(items.reduce((sum, item) => sum + item.subtotal, 0)) };
 }
 
+/**
+ * Part of `quantity` sold without stock to cover it, given the stock before the sale:
+ * everything when there was none (or it was already negative), the excess when there was some.
+ */
+export function shortageOf(stockBefore: number, quantity: number): number {
+  const covered = Math.min(Math.max(stockBefore, 0), quantity);
+  return roundQuantity(quantity - covered);
+}
+
 export class UnknownProductError extends Error {
   constructor(readonly productId: string) {
     super(`Unknown product ${productId}`);

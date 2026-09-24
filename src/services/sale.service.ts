@@ -1,7 +1,13 @@
 import { Prisma, type Customer, type Sale, type SaleItem } from '@prisma/client';
 import { env } from '../config/env';
 import { deriveReceivableStatus, outstandingAmount } from '../domain/receivableStatus';
-import { priceSale, summarizeItems, UnknownProductError } from '../domain/sales';
+import {
+  priceSale,
+  roundQuantity,
+  shortageOf,
+  summarizeItems,
+  UnknownProductError,
+} from '../domain/sales';
 import { AppError } from '../errors/AppError';
 import { formatDateOnly, todayInTimezone } from '../lib/dates';
 import { roundMoney, toNumber } from '../lib/money';
@@ -50,6 +56,7 @@ export function toSaleDto(sale: SaleWithRelations) {
       quantity: toNumber(item.quantity),
       unitPrice: roundMoney(toNumber(item.unitPrice)),
       subtotal: roundMoney(toNumber(item.subtotal)),
+      shortage: toNumber(item.shortage),
     })),
     summary: summarizeItems(
       sale.items.map((item) => ({
@@ -57,6 +64,7 @@ export function toSaleDto(sale: SaleWithRelations) {
         quantity: toNumber(item.quantity),
       })),
     ),
+    hasShortage: sale.hasShortage,
     receivable: receivable && {
       id: receivable.id,
       status: receivable.status,
@@ -87,11 +95,12 @@ async function findOrFail(id: string, db: DbClient = prisma) {
 
 export const saleService = {
   async list(query: ListSalesQuery) {
-    const { search, from, to, paymentType, status, ...pagination } = query;
+    const { search, from, to, paymentType, status, shortage, ...pagination } = query;
     const number = search && /^#?\d+$/.test(search) ? Number(search.replace('#', '')) : undefined;
     const where: Prisma.SaleWhereInput = {
       ...(paymentType && { paymentType }),
       ...(status && { status }),
+      ...(shortage && { hasShortage: true }),
       ...((from || to) && { date: { ...(from && { gte: from }), ...(to && { lte: to }) } }),
       ...(search &&
         (number !== undefined
@@ -120,6 +129,9 @@ export const saleService = {
    * (stock may go negative: the sale is never blocked) and, when it is on credit, creates the
    * receivable with what was taken. Returns the sale and the products left at or below their
    * alert level.
+   *
+   * Traceability: every stock movement keeps the balance it left and the part sold without stock
+   * (`shortage`); the sale line and the sale are marked too, so differences can be explained.
    */
   async create(input: CreateSaleInput, userId?: string) {
     const date = input.date ?? today();
@@ -170,37 +182,55 @@ export const saleService = {
               docNumber: input.docNumber ?? null,
               total: priced.total,
               createdById: userId ?? null,
-              items: {
-                create: priced.items.map(({ trackStock: _trackStock, ...item }, position) => ({
-                  ...item,
-                  position,
-                })),
-              },
             },
           });
 
-          // Stock: one movement per counted product, and the running total on the product.
+          // Stock: the product's running total first (atomic decrement), then one movement per
+          // counted product with the balance it left and what was sold without stock.
           const lowStock: Array<{ productId: string; name: string; stock: number }> = [];
-          for (const item of priced.items.filter((line) => line.trackStock)) {
+          // Per line: a product repeated at two prices has two lines, each with its movement.
+          const shortages = priced.items.map(() => 0);
+          for (const [index, item] of priced.items.entries()) {
+            if (!item.trackStock) continue;
+            const product = await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } },
+            });
+            const after = toNumber(product.stock);
+            const shortage = shortageOf(roundQuantity(after + item.quantity), item.quantity);
+            shortages[index] = shortage;
             await tx.stockMovement.create({
               data: {
                 tenantId: requireTenantId(),
                 productId: item.productId,
                 type: 'sale',
                 quantity: -item.quantity,
+                balanceAfter: after,
+                shortage,
                 saleId: sale.id,
               },
             });
-            const product = await tx.product.update({
-              where: { id: item.productId },
-              data: { stock: { decrement: item.quantity } },
-            });
-            const stock = toNumber(product.stock);
             const alertAt = product.minStock === null ? 0 : toNumber(product.minStock);
-            if (stock <= alertAt) {
-              lowStock.push({ productId: product.id, name: product.name, stock });
+            if (after <= alertAt) {
+              lowStock.push({ productId: product.id, name: product.name, stock: after });
             }
           }
+
+          // Lines are added once their shortage is known (nested: the tenant scope requires it).
+          const hasShortage = shortages.some((value) => value > 0);
+          await tx.sale.update({
+            where: { id: sale.id },
+            data: {
+              hasShortage,
+              items: {
+                create: priced.items.map(({ trackStock: _trackStock, ...item }, position) => ({
+                  ...item,
+                  position,
+                  shortage: shortages[position],
+                })),
+              },
+            },
+          });
 
           if (input.paymentType === 'credit' && input.customerId && input.dueDate) {
             await tx.receivable.create({
@@ -252,18 +282,20 @@ export const saleService = {
       const counted = await tx.stockMovement.findMany({ where: { saleId: id, type: 'sale' } });
       for (const movement of counted) {
         const quantity = -toNumber(movement.quantity);
+        const product = await tx.product.update({
+          where: { id: movement.productId },
+          data: { stock: { increment: quantity } },
+        });
         await tx.stockMovement.create({
           data: {
             tenantId: requireTenantId(),
             productId: movement.productId,
             type: 'sale_void',
             quantity,
+            balanceAfter: product.stock,
             saleId: id,
+            note: `Sale #${sale.number} voided`,
           },
-        });
-        await tx.product.update({
-          where: { id: movement.productId },
-          data: { stock: { increment: quantity } },
         });
       }
       if (sale.receivable) await tx.receivable.delete({ where: { id: sale.receivable.id } });

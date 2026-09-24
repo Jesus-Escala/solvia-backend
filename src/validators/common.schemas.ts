@@ -24,6 +24,12 @@ export const moneySchema = z.coerce
     message: 'Amount must have at most 2 decimals',
   });
 
+/** Query of a picker search box: short text and a small page, no count. */
+export const lookupQuerySchema = z.object({
+  search: z.string().max(120).default(''),
+  limit: z.coerce.number().int().min(1).max(20).default(8),
+});
+
 export const sortDirSchema = z.enum(['asc', 'desc']).default('asc');
 
 export type Pagination = z.infer<typeof paginationSchema>;

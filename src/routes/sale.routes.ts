@@ -18,6 +18,7 @@ saleRouter.use(requireModule('sales'));
  *       - { in: query, name: to, schema: { type: string, format: date } }
  *       - { in: query, name: paymentType, schema: { type: string, enum: [cash, credit] } }
  *       - { in: query, name: status, schema: { type: string, enum: [completed, voided] } }
+ *       - { in: query, name: shortage, schema: { type: string, enum: ['true'] }, description: Only sales that sold counted products beyond their stock }
  *       - { $ref: '#/components/parameters/Page' }
  *       - { $ref: '#/components/parameters/PageSize' }
  *     responses:

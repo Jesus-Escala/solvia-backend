@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { priceSale, summarizeItems, UnknownProductError } from '../src/domain/sales';
+import { priceSale, shortageOf, summarizeItems, UnknownProductError } from '../src/domain/sales';
 import { createSaleSchema } from '../src/validators/sale.schemas';
 
 const RICE = '11111111-1111-4111-8111-111111111111';
@@ -125,5 +125,16 @@ describe('createSaleSchema', () => {
         items: [{ productId: RICE, quantity: 0 }],
       }),
     ).toThrow();
+  });
+});
+
+describe('shortageOf', () => {
+  it('is zero with enough stock, the excess with some, everything with none', () => {
+    expect(shortageOf(10, 3)).toBe(0);
+    expect(shortageOf(3, 3)).toBe(0);
+    expect(shortageOf(2, 5)).toBe(3);
+    expect(shortageOf(0, 4)).toBe(4);
+    expect(shortageOf(-2, 1.5)).toBe(1.5);
+    expect(shortageOf(0.4, 1)).toBe(0.6);
   });
 });

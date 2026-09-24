@@ -2,7 +2,7 @@ import type { Product } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import { roundMoney, toNumber } from '../lib/money';
 import { productRepository } from '../repositories/product.repository';
-import { paginate } from '../validators/common.schemas';
+import { paginate, type Pagination } from '../validators/common.schemas';
 import type {
   CreateProductInput,
   ListProductsQuery,
@@ -52,6 +52,44 @@ export const productService = {
       orderBy: { field: sortBy, dir: sortDir },
     });
     return paginate(rows.map(toProductDto), total, pagination);
+  },
+
+  /** Picker search: exact code first, then name prefix, then name contains (active only). */
+  async lookup(search: string, limit: number) {
+    const rows = await productRepository.lookup(search, limit);
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      unit: row.unit,
+      price: roundMoney(toNumber(row.price)),
+      trackStock: row.trackStock,
+      stock: toNumber(row.stock),
+      minStock: row.minStock === null ? null : toNumber(row.minStock),
+    }));
+  },
+
+  /**
+   * Kardex of a product: every stock change with the balance it left and what left without
+   * stock (`shortage`), so a difference between the count and the system can be traced.
+   */
+  async movements(id: string, pagination: Pagination) {
+    await findOrFail(id);
+    const [rows, total] = await productRepository.movements(id, pagination);
+    return paginate(
+      rows.map((row) => ({
+        id: row.id,
+        type: row.type,
+        quantity: toNumber(row.quantity),
+        balanceAfter: row.balanceAfter === null ? null : toNumber(row.balanceAfter),
+        shortage: toNumber(row.shortage),
+        sale: row.sale,
+        note: row.note,
+        createdAt: row.createdAt.toISOString(),
+      })),
+      total,
+      pagination,
+    );
   },
 
   async getById(id: string) {
