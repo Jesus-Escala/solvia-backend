@@ -52,6 +52,16 @@ export const updateProductSchema = productFields
   .extend({ active: z.boolean().optional() })
   .refine((value) => Object.keys(value).length > 0, 'At least one field is required');
 
+/**
+ * Product lookup: the picker (8 by relevance) or the point-of-sale catalog (`sort=popular`: the
+ * best sellers of the last 90 days first, up to 60).
+ */
+export const productLookupQuerySchema = z.object({
+  search: z.string().max(120).default(''),
+  limit: z.coerce.number().int().min(1).max(60).default(8),
+  sort: z.enum(['relevance', 'popular']).default('relevance'),
+});
+
 export const listProductsQuerySchema = paginationSchema.extend({
   /** Matches the name or the code (case-insensitive). */
   search: z.string().trim().max(120).optional(),

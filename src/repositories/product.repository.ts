@@ -107,9 +107,10 @@ export const productRepository = {
   /**
    * Picker search over active products: an exact code (a scanned barcode) first, then names
    * starting with the text, then names containing it. No count, only what a picker shows.
-   * Uses the name trigram index. Raw SQL: filters by the tenant explicitly.
+   * Uses the name trigram index. Raw SQL: filters by the tenant explicitly. With `popular`, what
+   * sold most in the last 90 days goes first (then the same order).
    */
-  lookup(search: string, limit: number) {
+  lookup(search: string, limit: number, popular = false) {
     const tenantId = requireTenantId();
     const text = search.trim();
     const pattern = escapeLike(text);
@@ -130,6 +131,14 @@ export const productRepository = {
       SELECT p."id", p."name", p."code", p."unit", p."price", p."cost", p."trackStock", p."stock",
              p."minStock", p."packSize"
       FROM "products" p
+      LEFT JOIN (
+        SELECT i."productId", COUNT(*) AS "lines"
+        FROM "sale_items" i
+        JOIN "sales" s ON s."id" = i."saleId"
+        WHERE ${popular} AND s."tenantId" = ${tenantId} AND s."status" = 'completed'
+          AND s."date" >= CURRENT_DATE - 90
+        GROUP BY i."productId"
+      ) sold ON sold."productId" = p."id"
       WHERE p."tenantId" = ${tenantId}
         AND p."active"
         AND (${text} = ''
@@ -138,6 +147,7 @@ export const productRepository = {
              OR p."code" ILIKE ${pattern} || '%')
       ORDER BY (p."code" IS NOT DISTINCT FROM ${text}) DESC,
                (p."name" ILIKE ${pattern} || '%') DESC,
+               COALESCE(sold."lines", 0) DESC,
                p."name" ASC, p."id" ASC
       LIMIT ${limit}
     `;

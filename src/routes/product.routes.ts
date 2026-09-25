@@ -48,7 +48,8 @@ productRouter.use(requireModule('catalog'));
  *     description: No pagination or count; uses the name trigram index. Built for search-as-you-type and barcode scanners.
  *     parameters:
  *       - { in: query, name: search, schema: { type: string } }
- *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 20, default: 8 } }
+ *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 60, default: 8 } }
+ *       - { in: query, name: sort, schema: { type: string, enum: [relevance, popular], default: relevance }, description: popular puts the best sellers of the last 90 days first (point-of-sale catalog) }
  *     responses:
  *       200: { description: '{ data: [{ id, name, code, unit, price, cost, trackStock, stock, minStock, packSize }] }' }
  * /products/{id}/adjust:

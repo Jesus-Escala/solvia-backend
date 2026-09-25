@@ -60,9 +60,12 @@ export const productService = {
     return paginate(rows.map(toProductDto), total, pagination);
   },
 
-  /** Picker search: exact code first, then name prefix, then name contains (active only). */
-  async lookup(search: string, limit: number) {
-    const rows = await productRepository.lookup(search, limit);
+  /**
+   * Picker search: exact code first, then name prefix, then name contains (active only).
+   * `popular` puts the best sellers of the last 90 days first (the point-of-sale catalog).
+   */
+  async lookup(search: string, limit: number, sort: 'relevance' | 'popular' = 'relevance') {
+    const rows = await productRepository.lookup(search, limit, sort === 'popular');
     return rows.map((row) => ({
       id: row.id,
       name: row.name,

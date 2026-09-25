@@ -3,6 +3,7 @@ import { hasModule } from '../src/domain/modules';
 import { updateTenantSchema } from '../src/validators/platform.schemas';
 import {
   createProductSchema,
+  productLookupQuerySchema,
   listProductsQuerySchema,
   updateProductSchema,
 } from '../src/validators/product.schemas';
@@ -35,6 +36,15 @@ describe('tenant modules', () => {
 });
 
 describe('product schemas', () => {
+  it('serves the point-of-sale catalog by best sellers, up to 60', () => {
+    expect(productLookupQuerySchema.parse({})).toEqual({ search: '', limit: 8, sort: 'relevance' });
+    expect(productLookupQuerySchema.parse({ limit: '48', sort: 'popular' })).toMatchObject({
+      limit: 48,
+      sort: 'popular',
+    });
+    expect(() => productLookupQuerySchema.parse({ limit: 61 })).toThrow();
+  });
+
   it('applies defaults and turns an empty code into null', () => {
     expect(createProductSchema.parse({ name: ' Arroz 5 kg ', price: '24.5', code: '' })).toEqual({
       name: 'Arroz 5 kg',

@@ -2,10 +2,11 @@ import type { Request, Response } from 'express';
 import { getAuth } from '../middleware/tenantScope';
 import { productService } from '../services/product.service';
 import { adjustStockSchema } from '../validators/inventory.schemas';
-import { idParamSchema, lookupQuerySchema, paginationSchema } from '../validators/common.schemas';
+import { idParamSchema, paginationSchema } from '../validators/common.schemas';
 import {
   createProductSchema,
   listProductsQuerySchema,
+  productLookupQuerySchema,
   updateProductSchema,
 } from '../validators/product.schemas';
 
@@ -15,8 +16,8 @@ export const productController = {
   },
 
   async lookup(req: Request, res: Response) {
-    const { search, limit } = lookupQuerySchema.parse(req.query);
-    res.json({ data: await productService.lookup(search, limit) });
+    const { search, limit, sort } = productLookupQuerySchema.parse(req.query);
+    res.json({ data: await productService.lookup(search, limit, sort) });
   },
 
   async get(req: Request, res: Response) {
