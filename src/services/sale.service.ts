@@ -290,8 +290,9 @@ export const saleService = {
           });
 
           if (input.paymentType === 'credit' && input.customerId && input.dueDate) {
-            // What the customer paid now is the first payment of the debt.
-            const receivable = await tx.receivable.create({
+            // What the customer paid now is the first payment of the debt, created with it (the
+            // payment guard checks receivables outside this transaction, so it could not see it).
+            await tx.receivable.create({
               data: {
                 tenantId: requireTenantId(),
                 customerId: input.customerId,
@@ -305,18 +306,14 @@ export const saleService = {
                   today(),
                 ),
                 saleId: sale.id,
+                ...(downPayment > 0 &&
+                  input.downPaymentMethod && {
+                    payments: {
+                      create: [{ amount: downPayment, date, method: input.downPaymentMethod }],
+                    },
+                  }),
               },
             });
-            if (downPayment > 0 && input.downPaymentMethod) {
-              await tx.payment.create({
-                data: {
-                  receivableId: receivable.id,
-                  amount: downPayment,
-                  date,
-                  method: input.downPaymentMethod,
-                },
-              });
-            }
           }
 
           return { sale: toSaleDto(await findOrFail(sale.id, tx)), lowStock };
