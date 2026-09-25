@@ -66,7 +66,7 @@ const TENANTS: TenantSeed[] = [
     industry: 'Bodega o minimarket',
     plan: 'starter',
     domain: 'bodegasanmartin.pe',
-    modules: ['sales', 'inventory'],
+    modules: ['collections', 'sales', 'inventory'],
     products: [
       {
         name: 'Arroz Costeño 5 kg',

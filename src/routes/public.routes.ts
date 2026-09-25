@@ -32,7 +32,7 @@ const ACCESS_REQUESTS_PER_HOUR = 5;
  *               email: { type: string, format: email, example: julia@boticasantarosa.pe }
  *               phone: { type: string, pattern: '^[\d\s+-]{6,20}$', example: '+51 954 123 456' }
  *               industry: { type: string, maxLength: 80, example: Pharmacy }
- *               modules: { type: array, items: { type: string, enum: [sales, inventory] }, description: Optional modules of interest }
+ *               modules: { type: array, items: { type: string, enum: [collections, sales, inventory] }, description: Optional modules of interest }
  *               message: { type: string, maxLength: 1000 }
  *               website: { type: string, description: Honeypot; leave empty }
  *     responses:

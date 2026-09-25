@@ -2,8 +2,12 @@ import { Router } from 'express';
 import { receivableController } from '../controllers/receivable.controller';
 import { requireRole } from '../middleware/authenticate';
 import { optionalProofUpload } from '../middleware/upload';
+import { requireModule } from '../middleware/requireModule';
 
 export const receivableRouter = Router();
+
+// Credit, payments and reminders are the Cobranza module.
+receivableRouter.use(requireModule('collections'));
 
 /**
  * @openapi

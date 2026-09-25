@@ -9,15 +9,19 @@ export {
 
 const planSchema = z.enum(['free', 'starter', 'pro']);
 const tenantStatusSchema = z.enum(['active', 'suspended']);
-const tenantModulesSchema = z.array(z.enum(['sales', 'inventory'])).max(2);
+/** At least one module (duplicates are dropped by the transforms below). */
+const tenantModulesSchema = z
+  .array(z.enum(['collections', 'sales', 'inventory']))
+  .min(1, 'Choose at least one module')
+  .max(6);
 
 export const listTenantsQuerySchema = paginationSchema.extend({
   /** Matches the tenant name or the email of any of its users (case-insensitive). */
   search: z.string().trim().max(120).optional(),
   plan: planSchema.optional(),
   status: tenantStatusSchema.optional(),
-  /** A module the business has, or `none`: businesses without optional modules. */
-  module: z.enum(['sales', 'inventory', 'none']).optional(),
+  /** A module the business has, or `single`: businesses with only one module. */
+  module: z.enum(['collections', 'sales', 'inventory', 'single']).optional(),
   sortBy: z
     .enum([
       'name',
@@ -58,7 +62,9 @@ export const createTenantSchema = z.object({
     .transform((value) => (value ? value : undefined)),
   plan: planSchema.default('free'),
   /** Optional modules enabled from the start (e.g. the ones the access request asked for). */
-  modules: tenantModulesSchema.transform((modules) => [...new Set(modules)]).default([]),
+  modules: tenantModulesSchema
+    .transform((modules) => [...new Set(modules)])
+    .default(['collections']),
   admin: z.object({ name: z.string().trim().min(2).max(120), email: emailSchema }),
   /** Access request this business comes from; it is marked as converted. */
   accessRequestId: z.uuid('Invalid identifier').optional(),

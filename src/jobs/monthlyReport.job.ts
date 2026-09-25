@@ -3,6 +3,8 @@ import { formatPeriod, isLastDayOfMonth, todayInTimezone } from '../lib/dates';
 import { logger } from '../lib/logger';
 import { monthlyReportService } from '../services/monthlyReport.service';
 import { runForEachTenant } from './tenantJobRunner';
+import { hasModule } from '../domain/modules';
+import { tenantRepository } from '../repositories/tenant.repository';
 
 /**
  * Daily job that only acts on the last day of the month (cron has no portable "last day"
@@ -15,9 +17,12 @@ export async function runMonthlyReportJob(now = new Date(), { force = false } = 
     return [];
   }
 
-  const results = await runForEachTenant('monthly-report', () =>
-    monthlyReportService.generateForCurrentTenant(today),
-  );
+  // The monthly summary is about collections: only businesses with Cobranza get one.
+  const results = await runForEachTenant('monthly-report', async () => {
+    const tenant = await tenantRepository.findCurrent();
+    if (!tenant || !hasModule(tenant.modules, 'collections')) return null;
+    return monthlyReportService.generateForCurrentTenant(today);
+  });
   logger.info(
     `[monthly-report] Generated ${formatPeriod(today)} report for ${results.length} tenant(s)`,
   );

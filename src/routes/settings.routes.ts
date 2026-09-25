@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { settingsController } from '../controllers/settings.controller';
 import { requireRole } from '../middleware/authenticate';
+import { requireModule } from '../middleware/requireModule';
 
 export const settingsRouter = Router();
 
@@ -44,8 +45,15 @@ export const settingsRouter = Router();
  *     responses:
  *       200: { description: Template reset }
  */
-settingsRouter.get('/templates', settingsController.listTemplates);
-settingsRouter.put('/templates/:type', requireRole('admin'), settingsController.updateTemplate);
+// Message templates and reminder rules belong to Cobranza.
+const collections = requireModule('collections');
+settingsRouter.get('/templates', collections, settingsController.listTemplates);
+settingsRouter.put(
+  '/templates/:type',
+  collections,
+  requireRole('admin'),
+  settingsController.updateTemplate,
+);
 settingsRouter.post(
   '/templates/:type/reset',
   requireRole('admin'),
@@ -89,5 +97,10 @@ settingsRouter.post(
  *           unlimited). Manual reminders from the owner's WhatsApp are never counted.
  */
 settingsRouter.get('/plan', settingsController.planUsage);
-settingsRouter.get('/reminders', settingsController.getReminderRules);
-settingsRouter.put('/reminders', requireRole('admin'), settingsController.updateReminderRules);
+settingsRouter.get('/reminders', collections, settingsController.getReminderRules);
+settingsRouter.put(
+  '/reminders',
+  collections,
+  requireRole('admin'),
+  settingsController.updateReminderRules,
+);

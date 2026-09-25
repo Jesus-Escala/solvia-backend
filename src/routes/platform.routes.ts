@@ -180,7 +180,7 @@ platformRouter.get('/tenants', platformController.listTenants);
  *                   name: { type: string, example: Julia Condori }
  *                   email: { type: string, format: email, example: julia@boticasantarosa.pe }
  *               accessRequestId: { type: string, format: uuid }
- *               modules: { type: array, items: { type: string, enum: [sales, inventory] }, description: Optional modules enabled from the start }
+ *               modules: { type: array, items: { type: string, enum: [collections, sales, inventory] }, description: Optional modules enabled from the start }
  *     responses:
  *       201:
  *         description: Tenant created
@@ -229,7 +229,7 @@ platformRouter.post('/tenants', platformController.createTenant);
  *               modules:
  *                 type: array
  *                 description: Full list of enabled optional modules (replaces the current one)
- *                 items: { type: string, enum: [sales, inventory] }
+ *                 items: { type: string, enum: [collections, sales, inventory] }
  *     responses:
  *       200:
  *         description: Updated tenant detail

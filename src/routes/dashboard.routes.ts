@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import { dashboardController } from '../controllers/dashboard.controller';
 import { requireRole } from '../middleware/authenticate';
+import { requireModule } from '../middleware/requireModule';
 
 export const dashboardRouter = Router();
+
+/** The dashboard, monthly reports, the send log and reminders are the Cobranza module. */
+const collections = requireModule('collections');
 
 /**
  * @openapi
@@ -72,10 +76,10 @@ export const dashboardRouter = Router();
  *             schema: { $ref: '#/components/schemas/DebtConcentration' }
  *       400: { $ref: '#/components/responses/ValidationError' }
  */
-dashboardRouter.get('/dashboard/summary', dashboardController.summary);
-dashboardRouter.get('/dashboard/cash-flow', dashboardController.cashFlow);
-dashboardRouter.get('/dashboard/analytics', dashboardController.analytics);
-dashboardRouter.get('/dashboard/concentration', dashboardController.concentration);
+dashboardRouter.get('/dashboard/summary', collections, dashboardController.summary);
+dashboardRouter.get('/dashboard/cash-flow', collections, dashboardController.cashFlow);
+dashboardRouter.get('/dashboard/analytics', collections, dashboardController.analytics);
+dashboardRouter.get('/dashboard/concentration', collections, dashboardController.concentration);
 
 /**
  * @openapi
@@ -112,13 +116,14 @@ dashboardRouter.get('/dashboard/concentration', dashboardController.concentratio
  *       200: { description: Report }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-dashboardRouter.get('/reports/monthly', dashboardController.listReports);
+dashboardRouter.get('/reports/monthly', collections, dashboardController.listReports);
 dashboardRouter.post(
   '/reports/monthly/generate',
+  collections,
   requireRole('admin'),
   dashboardController.generateReport,
 );
-dashboardRouter.get('/reports/monthly/:period', dashboardController.getReport);
+dashboardRouter.get('/reports/monthly/:period', collections, dashboardController.getReport);
 
 /**
  * @openapi
@@ -142,5 +147,10 @@ dashboardRouter.get('/reports/monthly/:period', dashboardController.getReport);
  *     responses:
  *       200: { description: Run summary }
  */
-dashboardRouter.get('/notifications', dashboardController.listNotifications);
-dashboardRouter.post('/reminders/run', requireRole('admin'), dashboardController.runReminders);
+dashboardRouter.get('/notifications', collections, dashboardController.listNotifications);
+dashboardRouter.post(
+  '/reminders/run',
+  collections,
+  requireRole('admin'),
+  dashboardController.runReminders,
+);

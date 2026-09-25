@@ -21,9 +21,9 @@ export const createAccessRequestSchema = z.object({
     .regex(/^[\d\s+-]{6,20}$/, 'Phone must be 6 to 20 characters: digits, spaces, + or -'),
   industry: optionalText(80),
   message: optionalText(1000),
-  /** Optional modules the business would like to add (sales, inventory). */
+  /** Modules the business is interested in. */
   modules: z
-    .array(z.enum(['sales', 'inventory']))
+    .array(z.enum(['collections', 'sales', 'inventory']))
     .max(4)
     .default([])
     .transform((modules) => [...new Set(modules)]),

@@ -16,6 +16,8 @@ import { requireTenantId } from '../lib/tenantContext';
 import type { DbClient } from '../repositories/types';
 import { paginate } from '../validators/common.schemas';
 import type { CreateSaleInput, ListSalesQuery } from '../validators/sale.schemas';
+import { hasModule } from '../domain/modules';
+import { tenantRepository } from '../repositories/tenant.repository';
 
 type SaleWithRelations = Sale & {
   customer: Pick<Customer, 'id' | 'name' | 'phone'> | null;
@@ -159,6 +161,13 @@ export const saleService = {
    */
   async create(input: CreateSaleInput, userId?: string) {
     const date = input.date ?? today();
+    if (input.paymentType === 'credit') {
+      // A credit sale becomes a receivable: that is the Cobranza module.
+      const tenant = await tenantRepository.findCurrent();
+      if (!tenant || !hasModule(tenant.modules, 'collections')) {
+        throw new AppError(403, 'MODULE_NOT_ENABLED', 'Credit sales need the collections module');
+      }
+    }
     if (input.dueDate && input.dueDate.getTime() < date.getTime()) {
       throw new AppError(400, 'DUE_BEFORE_ISSUE', 'Due date cannot be earlier than the sale date');
     }

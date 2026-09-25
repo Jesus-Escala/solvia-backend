@@ -14,13 +14,21 @@ describe('tenant modules', () => {
     expect(hasModule(['inventory'], 'catalog')).toBe(true);
     expect(hasModule(['sales'], 'inventory')).toBe(false);
     expect(hasModule(['sales', 'inventory'], 'inventory')).toBe(true);
+    expect(hasModule(['collections'], 'catalog')).toBe(false);
+    expect(hasModule(['collections'], 'customers')).toBe(true);
+    expect(hasModule(['sales'], 'customers')).toBe(true);
+    expect(hasModule(['inventory'], 'customers')).toBe(false);
+    expect(hasModule(['sales', 'inventory'], 'collections')).toBe(false);
   });
 
   it('lets the backoffice replace the module list, without duplicates', () => {
     expect(updateTenantSchema.parse({ modules: ['sales', 'sales'] })).toEqual({
       modules: ['sales'],
     });
-    expect(updateTenantSchema.parse({ modules: [] })).toEqual({ modules: [] });
+    expect(updateTenantSchema.parse({ modules: ['inventory'] })).toEqual({
+      modules: ['inventory'],
+    });
+    expect(() => updateTenantSchema.parse({ modules: [] })).toThrow();
     expect(() => updateTenantSchema.parse({ modules: ['accounting'] })).toThrow();
     expect(() => updateTenantSchema.parse({})).toThrow();
   });

@@ -26,7 +26,7 @@ vi.mock('../src/repositories/planUsage.repository', () => ({
 describe('plan limits', () => {
   beforeEach(() => {
     Object.assign(state, {
-      tenant: { plan: 'free', modules: [] },
+      tenant: { plan: 'free', modules: ['collections'] },
       sent: 0,
       packs: 0,
       users: 0,
@@ -45,19 +45,19 @@ describe('plan limits', () => {
   });
 
   it('never limits customers with the three modules', async () => {
-    state.tenant = { plan: 'pro', modules: ['sales', 'inventory'] };
+    state.tenant = { plan: 'pro', modules: ['collections', 'sales', 'inventory'] };
     state.customers = 50_000;
     await expect(planService.assertCanAddCustomer()).resolves.toBeUndefined();
   });
 
   it('refuses a user over the limit', async () => {
-    state.tenant = { plan: 'starter', modules: [] };
+    state.tenant = { plan: 'starter', modules: ['collections'] };
     state.users = 2;
     await expect(planService.assertCanAddUser()).rejects.toMatchObject({ code: 'PLAN_USER_LIMIT' });
   });
 
   it('adds the month packs to the automatic messages and never goes below zero', async () => {
-    state.tenant = { plan: 'starter', modules: ['sales'] };
+    state.tenant = { plan: 'starter', modules: ['collections', 'sales'] };
     state.sent = 450;
     state.packs = 500;
     const usage = await planService.usage();

@@ -21,6 +21,7 @@ import { whatsAppChatUrl } from '../lib/whatsapp';
 import { whatsAppProvider } from '../providers/whatsapp';
 import { settingsService } from './settings.service';
 import { planService } from './plan.service';
+import { hasModule } from '../domain/modules';
 
 const REMINDER_TYPES: ReminderType[] = ['pre_due_reminder', 'due_reminder', 'overdue_reminder'];
 
@@ -93,6 +94,10 @@ export const reminderService = {
    */
   async runForCurrentTenant(now = new Date()): Promise<ReminderRunSummary> {
     const today = todayInTimezone(env.APP_TIMEZONE, now);
+    const owner = await tenantRepository.findCurrent();
+    if (!owner || !hasModule(owner.modules, 'collections')) {
+      return { markedOverdue: 0, evaluated: 0, sent: 0, failed: 0, limited: 0 };
+    }
     const summary: ReminderRunSummary = {
       markedOverdue: await receivableService.refreshOverdueStatuses(today),
       evaluated: 0,

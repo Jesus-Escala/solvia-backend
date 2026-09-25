@@ -57,7 +57,11 @@ export const reportRouter = Router();
  *       403: { description: MODULE_NOT_ENABLED }
  */
 reportRouter.get('/sales-by-customer', requireModule('sales'), reportController.salesByCustomer);
-reportRouter.get('/collections-by-customer', reportController.collectionsByCustomer);
+reportRouter.get(
+  '/collections-by-customer',
+  requireModule('collections'),
+  reportController.collectionsByCustomer,
+);
 reportRouter.get('/sales-by-product', requireModule('sales'), reportController.salesByProduct);
 reportRouter.get('/stock', requireModule('catalog'), reportController.stock);
 reportRouter.get('/shortages', requireModule('sales'), reportController.shortages);
@@ -66,7 +70,7 @@ reportRouter.get('/shortages', requireModule('sales'), reportController.shortage
 const EXPORT_MODULES: Record<ReportId, ModuleRequirement | null> = {
   'sales-by-customer': 'sales',
   'sales-by-product': 'sales',
-  'collections-by-customer': null,
+  'collections-by-customer': 'collections',
   stock: 'catalog',
   shortages: 'sales',
 };

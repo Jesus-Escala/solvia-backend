@@ -31,11 +31,22 @@ describe('plan allowance', () => {
     expect(FREE_ALLOWANCE.automaticMessages).toBe(0);
   });
 
-  it('grows with the number of modules (Cobranza always counts as one)', () => {
-    expect(planAllowance('starter', [])).toEqual(PAID_ALLOWANCES[1]);
-    expect(planAllowance('pro', ['sales'])).toEqual(PAID_ALLOWANCES[2]);
-    expect(planAllowance('pro', ['sales', 'inventory'])).toEqual(PAID_ALLOWANCES[3]);
-    expect(planAllowance('pro', ['sales', 'sales'])).toEqual(PAID_ALLOWANCES[2]);
+  it('grows with the number of modules', () => {
+    expect(planAllowance('starter', ['collections'])).toEqual(PAID_ALLOWANCES[1]);
+    expect(planAllowance('pro', ['collections', 'sales'])).toEqual(PAID_ALLOWANCES[2]);
+    expect(planAllowance('pro', ['collections', 'sales', 'inventory'])).toEqual(PAID_ALLOWANCES[3]);
+    expect(planAllowance('pro', ['collections', 'sales', 'sales'])).toEqual(PAID_ALLOWANCES[2]);
+  });
+
+  it('gives no automatic messages without Cobranza (they are its reminders)', () => {
+    expect(planAllowance('starter', ['sales'])).toEqual({
+      ...PAID_ALLOWANCES[1],
+      automaticMessages: 0,
+    });
+    expect(planAllowance('pro', ['sales', 'inventory'])).toEqual({
+      ...PAID_ALLOWANCES[2],
+      automaticMessages: 0,
+    });
   });
 
   it('treats a null limit as unlimited', () => {
@@ -51,21 +62,29 @@ describe('plan price', () => {
   });
 
   it('adds the modules and discounts by how many there are', () => {
-    expect(planPrice('starter', [])).toEqual({
+    expect(planPrice('starter', ['collections'])).toEqual({
       billing: 'monthly',
       list: 39,
       discount: 0,
       perMonth: 39,
     });
-    expect(planPrice('starter', ['sales'])).toMatchObject({ list: 68, perMonth: 61.2 });
+    expect(planPrice('starter', ['sales'])).toMatchObject({ list: 29, perMonth: 29 });
+    expect(planPrice('starter', ['collections', 'sales'])).toMatchObject({
+      list: 68,
+      perMonth: 61.2,
+    });
     expect(planPrice('starter', ['sales', 'inventory'])).toMatchObject({
+      list: 58,
+      perMonth: 52.2,
+    });
+    expect(planPrice('starter', ['collections', 'sales', 'inventory'])).toMatchObject({
       list: 97,
       perMonth: 82.45,
     });
   });
 
   it('bills yearly as 10 months spread over 12', () => {
-    expect(planPrice('pro', ['sales', 'inventory'])).toMatchObject({
+    expect(planPrice('pro', ['collections', 'sales', 'inventory'])).toMatchObject({
       billing: 'annual',
       perMonth: 68.71,
     });

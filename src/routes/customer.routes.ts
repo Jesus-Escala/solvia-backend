@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import { customerController } from '../controllers/customer.controller';
 import { requireRole } from '../middleware/authenticate';
+import { requireModule } from '../middleware/requireModule';
 
 export const customerRouter = Router();
+
+// Customers come with Cobranza or Ventas; risk and statements are Cobranza.
+customerRouter.use(requireModule('customers'));
 
 /**
  * @openapi
@@ -104,7 +108,7 @@ customerRouter.delete('/:id', requireRole('admin'), customerController.remove);
  *           application/json:
  *             schema: { $ref: '#/components/schemas/RiskScore' }
  */
-customerRouter.get('/:id/risk', customerController.risk);
+customerRouter.get('/:id/risk', requireModule('collections'), customerController.risk);
 
 /**
  * @openapi
@@ -129,5 +133,13 @@ customerRouter.get('/:id/risk', customerController.risk);
  *     responses:
  *       201: { description: Statement generated and sent (see notification status) }
  */
-customerRouter.get('/:id/statement', customerController.downloadStatement);
-customerRouter.post('/:id/statement/send', customerController.sendStatement);
+customerRouter.get(
+  '/:id/statement',
+  requireModule('collections'),
+  customerController.downloadStatement,
+);
+customerRouter.post(
+  '/:id/statement/send',
+  requireModule('collections'),
+  customerController.sendStatement,
+);

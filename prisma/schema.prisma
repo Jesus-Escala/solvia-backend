@@ -30,6 +30,8 @@ enum TenantStatus {
 /// Optional modules a business can have enabled (from the backoffice). Debt collection is always on.
 /// The product catalog is available when any of them is enabled.
 enum TenantModule {
+  /// Cobranza: receivables (credit), payments, WhatsApp reminders, statements and the dashboard.
+  collections
   /// Comercial: sales (cash or on credit) with their items.
   sales
   /// Logística: purchases from suppliers and stock.
@@ -145,7 +147,8 @@ model Tenant {
   plan      TenantPlan     @default(free)
   /// Suspended tenants cannot sign in or refresh their session.
   status    TenantStatus   @default(active)
-  modules   TenantModule[] @default([])
+  /// Modules the business pays for (at least one). Cobranza is the usual start.
+  modules   TenantModule[] @default([collections])
   createdAt DateTime       @default(now())
 
   users            User[]
