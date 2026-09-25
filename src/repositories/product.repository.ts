@@ -126,10 +126,11 @@ export const productRepository = {
         stock: Prisma.Decimal;
         minStock: Prisma.Decimal | null;
         packSize: Prisma.Decimal | null;
+        sold: number;
       }>
     >`
       SELECT p."id", p."name", p."code", p."unit", p."price", p."cost", p."trackStock", p."stock",
-             p."minStock", p."packSize"
+             p."minStock", p."packSize", COALESCE(sold."lines", 0)::int AS "sold"
       FROM "products" p
       LEFT JOIN (
         SELECT i."productId", COUNT(*) AS "lines"

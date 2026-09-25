@@ -77,6 +77,8 @@ export const productService = {
       stock: toNumber(row.stock),
       minStock: row.minStock === null ? null : toNumber(row.minStock),
       packSize: row.packSize === null ? null : toNumber(row.packSize),
+      /** Sale lines of the last 90 days (only with `popular`; null otherwise). */
+      sold: sort === 'popular' ? row.sold : null,
     }));
   },
 
