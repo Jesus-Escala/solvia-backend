@@ -1,10 +1,13 @@
 import { roundMoney } from '../lib/money';
 
 export interface SaleLineInput {
-  productId: string;
+  /** Omitted on a free line (a service or something not in the catalog). */
+  productId?: string | undefined;
+  /** Name of a free line. */
+  description?: string | undefined;
   quantity: number;
-  /** Price actually charged; defaults to the product's price. */
-  unitPrice?: number;
+  /** Price actually charged; defaults to the product's price (required on a free line). */
+  unitPrice?: number | undefined;
 }
 
 export interface CatalogProduct {
@@ -15,7 +18,7 @@ export interface CatalogProduct {
 }
 
 export interface PricedLine {
-  productId: string;
+  productId: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -29,31 +32,48 @@ export const roundQuantity = (value: number) => Math.round((value + Number.EPSIL
 /**
  * Prices the lines of a sale from the catalog: the product name is copied (products can be
  * renamed later), the unit price defaults to the product's, and repeated products are merged
- * into one line when charged at the same price. Throws with the id of an unknown product.
+ * into one line when charged at the same price. Free lines (no product: a service or something
+ * not in the catalog) keep their name and price and never move stock. The discount comes off the
+ * sum of the lines: `subtotal` is that sum and `total` what is charged. Throws with the id of an
+ * unknown product, or `DiscountTooHighError` when the discount is more than the lines.
  */
 export function priceSale(
   lines: SaleLineInput[],
   products: Map<string, CatalogProduct>,
-): { items: PricedLine[]; total: number } {
+  discount = 0,
+): { items: PricedLine[]; subtotal: number; discount: number; total: number } {
   const merged = new Map<string, PricedLine>();
   for (const line of lines) {
-    const product = products.get(line.productId);
-    if (!product) throw new UnknownProductError(line.productId);
-    const unitPrice = roundMoney(line.unitPrice ?? product.price);
-    const key = `${product.id}@${unitPrice}`;
+    const product = line.productId ? products.get(line.productId) : null;
+    if (line.productId && !product) throw new UnknownProductError(line.productId);
+    const unitPrice = roundMoney(line.unitPrice ?? product?.price ?? 0);
+    const description = product ? product.name : (line.description ?? '').trim();
+    const key = product
+      ? `${product.id}@${unitPrice}`
+      : `free:${description.toLowerCase()}@${unitPrice}`;
     const existing = merged.get(key);
     const quantity = roundQuantity((existing?.quantity ?? 0) + line.quantity);
     merged.set(key, {
-      productId: product.id,
-      description: product.name,
+      productId: product?.id ?? null,
+      // Merged free lines keep the name as it was first written.
+      description: existing?.description ?? description,
       quantity,
       unitPrice,
       subtotal: roundMoney(quantity * unitPrice),
-      trackStock: product.trackStock,
+      trackStock: product?.trackStock ?? false,
     });
   }
   const items = [...merged.values()];
-  return { items, total: roundMoney(items.reduce((sum, item) => sum + item.subtotal, 0)) };
+  const subtotal = roundMoney(items.reduce((sum, item) => sum + item.subtotal, 0));
+  const off = roundMoney(discount);
+  if (off > subtotal) throw new DiscountTooHighError();
+  return { items, subtotal, discount: off, total: roundMoney(subtotal - off) };
+}
+
+export class DiscountTooHighError extends Error {
+  constructor() {
+    super('The discount is more than the sale');
+  }
 }
 
 /**

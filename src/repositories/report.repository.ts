@@ -82,7 +82,7 @@ export const reportRepository = {
     const tenantId = requireTenantId();
     return prisma.$queryRaw<
       Array<{
-        productId: string;
+        productId: string | null;
         name: string;
         unit: string;
         quantity: Decimal;
@@ -91,19 +91,20 @@ export const reportRepository = {
         sales: number;
       }>
     >`
-      SELECT pr."id" AS "productId", pr."name" AS "name", pr."unit"::text AS "unit",
+      SELECT pr."id" AS "productId", COALESCE(pr."name", i."description") AS "name",
+             COALESCE(pr."unit"::text, 'unit') AS "unit",
              SUM(i."quantity") AS "quantity",
              SUM(i."subtotal") AS "revenue",
              SUM(i."quantity" * pr."cost") AS "cost",
              COUNT(DISTINCT s."id")::int AS "sales"
       FROM "sale_items" i
       JOIN "sales" s ON s."id" = i."saleId"
-      JOIN "products" pr ON pr."id" = i."productId"
+      LEFT JOIN "products" pr ON pr."id" = i."productId"
       WHERE s."tenantId" = ${tenantId}
         AND s."status" = 'completed'
         AND s."date" BETWEEN ${sqlDate(from)} AND ${sqlDate(to)}
-      GROUP BY pr."id", pr."name", pr."unit"
-      ORDER BY "revenue" DESC, pr."name" ASC
+      GROUP BY pr."id", COALESCE(pr."name", i."description"), COALESCE(pr."unit"::text, 'unit')
+      ORDER BY "revenue" DESC, "name" ASC
     `;
   },
 

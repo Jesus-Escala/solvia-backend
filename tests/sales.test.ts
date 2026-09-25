@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { priceSale, shortageOf, summarizeItems, UnknownProductError } from '../src/domain/sales';
+import {
+  DiscountTooHighError,
+  priceSale,
+  shortageOf,
+  summarizeItems,
+  UnknownProductError,
+} from '../src/domain/sales';
 import { createSaleSchema } from '../src/validators/sale.schemas';
 
 const RICE = '11111111-1111-4111-8111-111111111111';
@@ -66,6 +72,37 @@ describe('priceSale', () => {
     ]);
   });
 
+  it('keeps free lines (services, things not in the catalog) out of stock', () => {
+    const { items, total } = priceSale(
+      [
+        { description: 'Instalación', quantity: 1, unitPrice: 35 },
+        { description: 'instalación ', quantity: 1, unitPrice: 35 },
+        { productId: RICE, quantity: 1 },
+      ],
+      catalog,
+    );
+    expect(items[0]).toEqual({
+      productId: null,
+      description: 'Instalación',
+      quantity: 2,
+      unitPrice: 35,
+      subtotal: 70,
+      trackStock: false,
+    });
+    expect(total).toBe(94.5);
+  });
+
+  it('takes the discount off the sum of the lines, never more than it', () => {
+    expect(priceSale([{ productId: RICE, quantity: 2 }], catalog, 4)).toMatchObject({
+      subtotal: 49,
+      discount: 4,
+      total: 45,
+    });
+    expect(() => priceSale([{ productId: RICE, quantity: 1 }], catalog, 30)).toThrow(
+      DiscountTooHighError,
+    );
+  });
+
   it('rejects a product outside the catalog', () => {
     expect(() => priceSale([{ productId: 'other', quantity: 1 }], catalog)).toThrow(
       UnknownProductError,
@@ -112,6 +149,48 @@ describe('createSaleSchema', () => {
       'customerId',
       'dueDate',
     ]);
+  });
+
+  it('asks the name and price of a free line', () => {
+    const result = createSaleSchema.safeParse({
+      paymentType: 'cash',
+      method: 'cash',
+      items: [{ quantity: 1 }],
+    });
+    expect(result.error?.issues.map((issue) => issue.path.at(-1)).sort()).toEqual([
+      'description',
+      'unitPrice',
+    ]);
+    expect(
+      createSaleSchema.parse({
+        paymentType: 'cash',
+        method: 'cash',
+        items: [{ description: 'Delivery', quantity: 1, unitPrice: 5 }],
+        notes: ' ',
+      }),
+    ).toMatchObject({ discount: 0, notes: null });
+  });
+
+  it('takes a down payment only on credit, with how it was paid', () => {
+    const credit = {
+      paymentType: 'credit',
+      customerId: RICE,
+      dueDate: '2026-10-30',
+      items: [item],
+    };
+    expect(() => createSaleSchema.parse({ ...credit, downPayment: 10 })).toThrow(/How was it paid/);
+    expect(
+      createSaleSchema.parse({ ...credit, downPayment: 10, downPaymentMethod: 'yape' }),
+    ).toMatchObject({ downPayment: 10 });
+    expect(() =>
+      createSaleSchema.parse({
+        paymentType: 'cash',
+        method: 'cash',
+        items: [item],
+        downPayment: 5,
+        downPaymentMethod: 'cash',
+      }),
+    ).toThrow(/Only for credit/);
   });
 
   it('needs at least one product with a positive quantity', () => {

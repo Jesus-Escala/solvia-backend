@@ -2,6 +2,7 @@ import { Prisma, type Customer, type Sale, type SaleItem } from '@prisma/client'
 import { env } from '../config/env';
 import { deriveReceivableStatus, outstandingAmount } from '../domain/receivableStatus';
 import {
+  DiscountTooHighError,
   priceSale,
   roundQuantity,
   shortageOf,
@@ -30,6 +31,8 @@ type SaleWithRelations = Sale & {
   } | null;
 };
 
+const EPSILON = 0.005;
+
 const saleInclude = {
   customer: { select: { id: true, name: true, phone: true } },
   items: { orderBy: { position: 'asc' } },
@@ -47,7 +50,11 @@ export function toSaleDto(sale: SaleWithRelations) {
     method: sale.method,
     docType: sale.docType,
     docNumber: sale.docNumber,
+    /** Sum of the lines, before the discount. */
+    subtotal: roundMoney(toNumber(sale.total) + toNumber(sale.discount)),
+    discount: roundMoney(toNumber(sale.discount)),
     total: roundMoney(toNumber(sale.total)),
+    notes: sale.notes,
     status: sale.status,
     createdAt: sale.createdAt.toISOString(),
     voidedAt: sale.voidedAt?.toISOString() ?? null,
@@ -70,6 +77,7 @@ export function toSaleDto(sale: SaleWithRelations) {
     receivable: receivable && {
       id: receivable.id,
       status: receivable.status,
+      paid: roundMoney(toNumber(receivable.paidAmount)),
       outstanding: outstandingAmount({
         totalAmount: toNumber(receivable.totalAmount),
         paidAmount: toNumber(receivable.paidAmount),
@@ -180,7 +188,9 @@ export const saleService = {
             if (!customer) throw AppError.notFound('Customer');
           }
 
-          const ids = [...new Set(input.items.map((item) => item.productId))];
+          const ids = [
+            ...new Set(input.items.flatMap((item) => (item.productId ? [item.productId] : []))),
+          ];
           const products = await tx.product.findMany({ where: { id: { in: ids } } });
           let priced;
           try {
@@ -197,10 +207,22 @@ export const saleService = {
                   },
                 ]),
               ),
+              input.discount,
             );
           } catch (error) {
             if (error instanceof UnknownProductError) throw AppError.notFound('Product');
+            if (error instanceof DiscountTooHighError) {
+              throw new AppError(400, 'DISCOUNT_TOO_HIGH', 'The discount is more than the sale');
+            }
             throw error;
+          }
+          const downPayment = input.paymentType === 'credit' ? (input.downPayment ?? 0) : 0;
+          if (downPayment > 0 && downPayment >= priced.total - EPSILON) {
+            throw new AppError(
+              400,
+              'DOWN_PAYMENT_TOO_HIGH',
+              'The down payment covers the whole sale: record it as a cash sale',
+            );
           }
 
           const sale = await tx.sale.create({
@@ -213,7 +235,9 @@ export const saleService = {
               method: input.paymentType === 'cash' ? input.method : null,
               docType: input.docType,
               docNumber: input.docNumber ?? null,
+              discount: priced.discount,
               total: priced.total,
+              notes: input.notes ?? null,
               createdById: userId ?? null,
             },
           });
@@ -224,7 +248,7 @@ export const saleService = {
           // Per line: a product repeated at two prices has two lines, each with its movement.
           const shortages = priced.items.map(() => 0);
           for (const [index, item] of priced.items.entries()) {
-            if (!item.trackStock) continue;
+            if (!item.trackStock || item.productId === null) continue;
             const product = await tx.product.update({
               where: { id: item.productId },
               data: { stock: { decrement: item.quantity } },
@@ -266,21 +290,33 @@ export const saleService = {
           });
 
           if (input.paymentType === 'credit' && input.customerId && input.dueDate) {
-            await tx.receivable.create({
+            // What the customer paid now is the first payment of the debt.
+            const receivable = await tx.receivable.create({
               data: {
                 tenantId: requireTenantId(),
                 customerId: input.customerId,
                 description: summarizeItems(priced.items),
                 totalAmount: priced.total,
+                paidAmount: downPayment,
                 issueDate: date,
                 dueDate: input.dueDate,
                 status: deriveReceivableStatus(
-                  { totalAmount: priced.total, paidAmount: 0, dueDate: input.dueDate },
+                  { totalAmount: priced.total, paidAmount: downPayment, dueDate: input.dueDate },
                   today(),
                 ),
                 saleId: sale.id,
               },
             });
+            if (downPayment > 0 && input.downPaymentMethod) {
+              await tx.payment.create({
+                data: {
+                  receivableId: receivable.id,
+                  amount: downPayment,
+                  date,
+                  method: input.downPaymentMethod,
+                },
+              });
+            }
           }
 
           return { sale: toSaleDto(await findOrFail(sale.id, tx)), lowStock };

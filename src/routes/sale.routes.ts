@@ -32,8 +32,11 @@ saleRouter.use(requireModule('sales'));
  *       products at the same price are merged). Counted products (trackStock) leave stock;
  *       stock may go negative, the sale is never blocked, and `lowStock` lists the products
  *       left at or below their alert level. A credit sale needs customerId and dueDate and
- *       creates a receivable linked to the sale. Receipts are recorded (docType, docNumber),
- *       not issued.
+ *       creates a receivable linked to the sale; `downPayment` (with `downPaymentMethod`) is
+ *       recorded as its first payment and must be less than the total. Lines without productId
+ *       are free lines (a service or something not in the catalog: description + unitPrice) and
+ *       never move stock. `discount` comes off the sum of the lines (400 DISCOUNT_TOO_HIGH when
+ *       it is more). Receipts are recorded (docType, docNumber), not issued.
  *     requestBody:
  *       required: true
  *       content:
@@ -49,14 +52,19 @@ saleRouter.use(requireModule('sales'));
  *               date: { type: string, format: date, description: 'Default: today' }
  *               docType: { type: string, enum: [none, sale_note, receipt, invoice], default: none }
  *               docNumber: { type: string, nullable: true }
+ *               discount: { type: number, default: 0, description: Amount off the sum of the lines }
+ *               downPayment: { type: number, description: Credit sale - paid now, less than the total }
+ *               downPaymentMethod: { type: string, enum: [yape, plin, cash, bank_transfer] }
+ *               notes: { type: string, nullable: true, maxLength: 500 }
  *               items:
  *                 type: array
  *                 minItems: 1
  *                 items:
  *                   type: object
- *                   required: [productId, quantity]
+ *                   required: [quantity]
  *                   properties:
- *                     productId: { type: string, format: uuid }
+ *                     productId: { type: string, format: uuid, description: Omit for a free line }
+ *                     description: { type: string, description: Name of a free line }
  *                     quantity: { type: number, description: Up to 3 decimals }
  *                     unitPrice: { type: number }
  *     responses:

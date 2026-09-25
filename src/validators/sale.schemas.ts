@@ -38,16 +38,49 @@ export const createSaleSchema = z
       .nullish(),
     items: z
       .array(
-        z.object({
-          productId: z.uuid(),
-          quantity: quantitySchema,
-          unitPrice: unitPriceSchema.optional(),
-        }),
+        z
+          .object({
+            /** A catalog product; omit it for a free line (service, something not in the catalog). */
+            productId: z.uuid().optional(),
+            /** Name of a free line. */
+            description: z.string().trim().min(1).max(120).optional(),
+            quantity: quantitySchema,
+            /** Defaults to the product price; required on a free line. */
+            unitPrice: unitPriceSchema.optional(),
+          })
+          .superRefine((item, ctx) => {
+            if (!item.productId && !item.description) {
+              ctx.addIssue({ code: 'custom', path: ['description'], message: 'What was sold?' });
+            }
+            if (!item.productId && item.unitPrice === undefined) {
+              ctx.addIssue({ code: 'custom', path: ['unitPrice'], message: 'At what price?' });
+            }
+          }),
       )
       .min(1, 'Add at least one product')
       .max(100),
+    /** Amount off the sum of the lines (the app turns a percentage into an amount). */
+    discount: unitPriceSchema.default(0),
+    /** Credit sale: what the customer pays now (recorded as a first payment of the debt). */
+    downPayment: unitPriceSchema.optional(),
+    /** How the down payment was paid (required with one). */
+    downPaymentMethod: z.enum(PaymentMethod).optional(),
+    notes: z
+      .string()
+      .trim()
+      .max(500)
+      .transform((value) => (value === '' ? null : value))
+      .nullish(),
   })
   .superRefine((sale, ctx) => {
+    if (sale.downPayment !== undefined && sale.downPayment > 0) {
+      if (sale.paymentType !== 'credit') {
+        ctx.addIssue({ code: 'custom', path: ['downPayment'], message: 'Only for credit sales' });
+      }
+      if (!sale.downPaymentMethod) {
+        ctx.addIssue({ code: 'custom', path: ['downPaymentMethod'], message: 'How was it paid?' });
+      }
+    }
     if (sale.paymentType === 'cash' && !sale.method) {
       ctx.addIssue({ code: 'custom', path: ['method'], message: 'How was it paid?' });
     }

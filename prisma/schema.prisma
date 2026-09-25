@@ -431,7 +431,11 @@ model Sale {
   method      PaymentMethod?
   docType     SaleDocType     @default(none)
   docNumber   String?
+  /// Amount taken off the sum of the lines (0 when none); `total` already has it applied.
+  discount    Decimal         @default(0) @db.Decimal(12, 2)
   total       Decimal         @db.Decimal(12, 2)
+  /// Free note of the seller (delivery, what was agreed…).
+  notes       String?
   /// Some counted product was sold beyond its stock (see SaleItem.shortage) — traceability.
   hasShortage Boolean         @default(false)
   status      SaleStatus      @default(completed)
@@ -454,7 +458,8 @@ model Sale {
 model SaleItem {
   id          String  @id @default(uuid())
   saleId      String
-  productId   String
+  /// Null for a free line (a service or something not in the catalog): `description` names it.
+  productId   String?
   /// Order in which the line was added.
   position    Int     @default(0)
   /// Product name at the time of the sale (the product may be renamed later).
@@ -465,8 +470,8 @@ model SaleItem {
   /// Quantity sold beyond the stock available at that moment (0 when there was enough).
   shortage    Decimal @default(0) @db.Decimal(12, 3)
 
-  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  sale    Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@index([saleId])
   @@index([productId])
