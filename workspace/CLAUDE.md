@@ -2,6 +2,10 @@
 
 > Copy this file to the folder that contains the four repositories (`cp solvia-backend/workspace/CLAUDE.md ../CLAUDE.md` from this repo) so that tools like Claude Code opened there see the whole system.
 
+**Start of every session:** read the latest `BITACORA-SESION-<date>.txt` in this folder (handoff log
+with the full context of the last session: state, decisions, how the user works, pending list) before
+doing anything else. At the end of a working day the user asks for a new one for the next chat.
+
 This folder is NOT a repository. It holds the four independent Solvia repositories, cloned side
 by side. Each one has its own git history, its own `CLAUDE.md` with the details, and its own
 GitHub repository (`github.com/Jesus-Escala/<name>`). Always `cd` into the right repository
