@@ -681,6 +681,11 @@ export const openApiSpec = swaggerJsdoc({
             cost: { type: 'number', nullable: true, example: 21 },
             trackStock: { type: 'boolean', default: true },
             minStock: { type: 'number', nullable: true, description: 'Up to 3 decimals' },
+            packSize: {
+              type: 'number',
+              nullable: true,
+              description: 'Sack/box it is bought in, in the product unit (e.g. 10 kg)',
+            },
           },
         },
         Product: {

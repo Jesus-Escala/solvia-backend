@@ -24,6 +24,7 @@ export function toProductDto(product: Product) {
     trackStock: product.trackStock,
     stock: toNumber(product.stock),
     minStock: product.minStock === null ? null : toNumber(product.minStock),
+    packSize: product.packSize === null ? null : toNumber(product.packSize),
     active: product.active,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
@@ -72,6 +73,7 @@ export const productService = {
       trackStock: row.trackStock,
       stock: toNumber(row.stock),
       minStock: row.minStock === null ? null : toNumber(row.minStock),
+      packSize: row.packSize === null ? null : toNumber(row.packSize),
     }));
   },
 

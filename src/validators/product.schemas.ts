@@ -35,6 +35,10 @@ const productFields = z.object({
   cost: optionalMoneySchema.nullish(),
   trackStock: z.boolean(),
   minStock: quantitySchema.nullish(),
+  /** Sack/box it is bought in, in the product's unit (e.g. 10 kg); null when bought loose. */
+  packSize: quantitySchema
+    .refine((value) => value > 0, 'Pack size must be greater than zero')
+    .nullish(),
 });
 
 export const createProductSchema = productFields.extend({

@@ -54,6 +54,14 @@ describe('product schemas', () => {
     ).toMatchObject({ unit: 'kg', minStock: 2.5 });
   });
 
+  it('takes the size of the sack it is bought in', () => {
+    expect(
+      createProductSchema.parse({ name: 'Arroz', price: 4.5, unit: 'kg', packSize: '50' }),
+    ).toMatchObject({ unit: 'kg', packSize: 50 });
+    expect(updateProductSchema.parse({ packSize: null })).toEqual({ packSize: null });
+    expect(() => createProductSchema.parse({ name: 'Arroz', price: 4.5, packSize: 0 })).toThrow();
+  });
+
   it('allows archiving alone and requires at least one field', () => {
     expect(updateProductSchema.parse({ active: false })).toEqual({ active: false });
     expect(() => updateProductSchema.parse({})).toThrow();

@@ -124,10 +124,11 @@ export const productRepository = {
         trackStock: boolean;
         stock: Prisma.Decimal;
         minStock: Prisma.Decimal | null;
+        packSize: Prisma.Decimal | null;
       }>
     >`
       SELECT p."id", p."name", p."code", p."unit", p."price", p."cost", p."trackStock", p."stock",
-             p."minStock"
+             p."minStock", p."packSize"
       FROM "products" p
       WHERE p."tenantId" = ${tenantId}
         AND p."active"

@@ -395,6 +395,9 @@ model Product {
   /// Whether sales and purchases move its stock (false for services or bulk items not counted).
   trackStock Boolean     @default(true)
   minStock   Decimal?    @db.Decimal(12, 3)
+  /// How much of `unit` the sack/box it is bought in brings (e.g. 10 for a 10 kg sack of rice sold
+  /// by the kilo). Purchases can then be entered in sacks; stock and sales stay in `unit`.
+  packSize   Decimal?    @db.Decimal(12, 3)
   /// Current stock, kept in step with the StockMovement ledger (can go negative).
   stock      Decimal     @default(0) @db.Decimal(12, 3)
   /// Archived products stay for history but are hidden from pickers.
