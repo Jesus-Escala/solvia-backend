@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { productController } from '../controllers/product.controller';
 import { requireRole } from '../middleware/authenticate';
 import { requireModule } from '../middleware/requireModule';
+import { singleImageUpload } from '../middleware/upload';
 
 export const productRouter = Router();
 
@@ -137,4 +138,39 @@ productRouter.get('/:id', productController.get);
 productRouter.get('/:id/movements', productController.movements);
 productRouter.post('/:id/adjust', requireModule('inventory'), productController.adjust);
 productRouter.patch('/:id', productController.update);
+/**
+ * @openapi
+ * /products/{id}/image:
+ *   put:
+ *     tags: [Catalog]
+ *     summary: Set the picture of a product (multipart, field "image"; JPEG, PNG or WEBP)
+ *     parameters:
+ *       - { $ref: '#/components/parameters/Id' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image: { type: string, format: binary }
+ *     responses:
+ *       200:
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Product' }
+ *       400: { description: INVALID_IMAGE_TYPE, IMAGE_REQUIRED or FILE_TOO_LARGE }
+ *   delete:
+ *     tags: [Catalog]
+ *     summary: Remove the picture of a product
+ *     parameters:
+ *       - { $ref: '#/components/parameters/Id' }
+ *     responses:
+ *       200:
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Product' }
+ */
+productRouter.put('/:id/image', singleImageUpload, productController.setImage);
+productRouter.delete('/:id/image', productController.removeImage);
 productRouter.delete('/:id', requireRole('admin'), productController.remove);

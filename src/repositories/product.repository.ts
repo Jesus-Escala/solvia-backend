@@ -1,4 +1,4 @@
-import type { Prisma, ProductUnit } from '@prisma/client';
+import type { Prisma, ProductKind, ProductUnit } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { requireTenantId } from '../lib/tenantContext';
 import type { Pagination, SortDir } from '../validators/common.schemas';
@@ -9,23 +9,32 @@ function listFilter(options: {
   search?: string;
   status: 'active' | 'archived' | 'all';
   lowStock?: boolean;
+  kind?: ProductKind;
 }): Prisma.ProductWhereInput {
-  return {
-    ...(options.lowStock && {
+  // Each condition in its own AND entry: low stock and the search both need an OR.
+  const and: Prisma.ProductWhereInput[] = [];
+  if (options.lowStock) {
+    and.push({
       trackStock: true,
       // Column comparison (stock ≤ minStock); without an alert level, out of stock (≤ 0).
       OR: [
         { stock: { lte: prisma.product.fields.minStock } },
         { minStock: null, stock: { lte: 0 } },
       ],
-    }),
-    ...(options.status !== 'all' && { active: options.status === 'active' }),
-    ...(options.search && {
+    });
+  }
+  if (options.search) {
+    and.push({
       OR: [
         { name: { contains: options.search, mode: 'insensitive' } },
         { code: { contains: options.search, mode: 'insensitive' } },
       ],
-    }),
+    });
+  }
+  return {
+    ...(options.status !== 'all' && { active: options.status === 'active' }),
+    ...(options.kind && { kind: options.kind }),
+    ...(and.length > 0 && { AND: and }),
   };
 }
 
@@ -83,6 +92,7 @@ export const productRepository = {
     search?: string;
     status: 'active' | 'archived' | 'all';
     lowStock?: boolean;
+    kind?: ProductKind;
     pagination: Pagination;
     orderBy: { field: ProductOrderField; dir: SortDir };
   }) {
@@ -126,11 +136,14 @@ export const productRepository = {
         stock: Prisma.Decimal;
         minStock: Prisma.Decimal | null;
         packSize: Prisma.Decimal | null;
+        kind: ProductKind;
+        imageUrl: string | null;
         sold: number;
       }>
     >`
       SELECT p."id", p."name", p."code", p."unit", p."price", p."cost", p."trackStock", p."stock",
-             p."minStock", p."packSize", COALESCE(sold."lines", 0)::int AS "sold"
+             p."minStock", p."packSize", p."kind", p."imageUrl",
+             COALESCE(sold."lines", 0)::int AS "sold"
       FROM "products" p
       LEFT JOIN (
         SELECT i."productId", COUNT(*) AS "lines"
@@ -158,11 +171,21 @@ export const productRepository = {
     return prisma.product.findFirst({ where: { code } });
   },
 
-  create(data: CreateProductInput) {
+  /** The highest internal code of the business ("2" + 7 digits), or null. */
+  async highestInternalCode(): Promise<string | null> {
+    const tenantId = requireTenantId();
+    const rows = await prisma.$queryRaw<Array<{ code: string | null }>>`
+      SELECT MAX("code") AS "code" FROM "products"
+      WHERE "tenantId" = ${tenantId} AND "code" ~ '^2[0-9]{7}$'
+    `;
+    return rows[0]?.code ?? null;
+  },
+
+  create(data: CreateProductInput & { code: string }) {
     return prisma.product.create({ data: { ...data, tenantId: requireTenantId() } });
   },
 
-  update(id: string, data: UpdateProductInput) {
+  update(id: string, data: UpdateProductInput & { imageUrl?: string | null }) {
     return prisma.product.update({ where: { id }, data });
   },
 

@@ -1,4 +1,4 @@
-import { ProductUnit } from '@prisma/client';
+import { ProductKind, ProductUnit } from '@prisma/client';
 import { z } from 'zod';
 import { moneySchema, paginationSchema, sortDirSchema } from './common.schemas';
 
@@ -28,6 +28,8 @@ const optionalCode = z
   .nullish();
 
 const productFields = z.object({
+  /** A service is never counted in stock. */
+  kind: z.enum(ProductKind),
   name: z.string().trim().min(2).max(120),
   code: optionalCode,
   unit: z.enum(ProductUnit),
@@ -42,6 +44,7 @@ const productFields = z.object({
 });
 
 export const createProductSchema = productFields.extend({
+  kind: productFields.shape.kind.default('product'),
   unit: productFields.shape.unit.default('unit'),
   trackStock: productFields.shape.trackStock.default(true),
 });
@@ -67,6 +70,8 @@ export const listProductsQuerySchema = paginationSchema.extend({
   search: z.string().trim().max(120).optional(),
   /** `active` (default) hides archived products; `archived` shows only those; `all` both. */
   status: z.enum(['active', 'archived', 'all']).default('active'),
+  /** Only products or only services. */
+  kind: z.enum(ProductKind).optional(),
   /** Only counted products at or below their alert level (0 when none is set). */
   lowStock: z
     .enum(['true', 'false'])

@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { AppError } from '../errors/AppError';
 import { getAuth } from '../middleware/tenantScope';
 import { productService } from '../services/product.service';
 import { adjustStockSchema } from '../validators/inventory.schemas';
@@ -43,6 +44,17 @@ export const productController = {
   async update(req: Request, res: Response) {
     const { id } = idParamSchema.parse(req.params);
     res.json(await productService.update(id, updateProductSchema.parse(req.body)));
+  },
+
+  async setImage(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    if (!req.file) throw new AppError(400, 'IMAGE_REQUIRED', 'Send the picture in the image field');
+    res.json(await productService.setImage(id, req.file));
+  },
+
+  async removeImage(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    res.json(await productService.removeImage(id));
   },
 
   async remove(req: Request, res: Response) {

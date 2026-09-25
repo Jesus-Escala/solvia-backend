@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hasModule } from '../src/domain/modules';
+import { nextInternalCode } from '../src/domain/productCode';
 import { updateTenantSchema } from '../src/validators/platform.schemas';
 import {
   createProductSchema,
@@ -36,6 +37,24 @@ describe('tenant modules', () => {
 });
 
 describe('product schemas', () => {
+  it('numbers internal codes after the highest one, in the in-store range', () => {
+    expect(nextInternalCode(null)).toBe('20000001');
+    expect(nextInternalCode('20000041')).toBe('20000042');
+    expect(nextInternalCode('7750000000017')).toBe('20000001');
+  });
+
+  it('takes products and services, products by default', () => {
+    expect(createProductSchema.parse({ name: 'Arroz', price: 4 })).toMatchObject({
+      kind: 'product',
+    });
+    expect(
+      createProductSchema.parse({ name: 'Instalación', price: 30, kind: 'service' }),
+    ).toMatchObject({
+      kind: 'service',
+    });
+    expect(() => createProductSchema.parse({ name: 'Otro', price: 1, kind: 'bundle' })).toThrow();
+  });
+
   it('serves the point-of-sale catalog by best sellers, up to 60', () => {
     expect(productLookupQuerySchema.parse({})).toEqual({ search: '', limit: 8, sort: 'relevance' });
     expect(productLookupQuerySchema.parse({ limit: '48', sort: 'popular' })).toMatchObject({
@@ -47,6 +66,7 @@ describe('product schemas', () => {
 
   it('applies defaults and turns an empty code into null', () => {
     expect(createProductSchema.parse({ name: ' Arroz 5 kg ', price: '24.5', code: '' })).toEqual({
+      kind: 'product',
       name: 'Arroz 5 kg',
       price: 24.5,
       code: null,

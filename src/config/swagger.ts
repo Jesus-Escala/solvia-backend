@@ -672,6 +672,12 @@ export const openApiSpec = swaggerJsdoc({
               nullable: true,
               description: 'Barcode or internal code, unique per business',
             },
+            kind: {
+              type: 'string',
+              enum: ['product', 'service'],
+              default: 'product',
+              description: 'A service is never counted in stock',
+            },
             unit: {
               type: 'string',
               enum: ['unit', 'kg', 'liter', 'box', 'pack', 'dozen', 'meter'],
@@ -695,6 +701,7 @@ export const openApiSpec = swaggerJsdoc({
               type: 'object',
               properties: {
                 id: { type: 'string', format: 'uuid' },
+                imageUrl: { type: 'string', nullable: true, example: '/files/products/….webp' },
                 active: { type: 'boolean' },
                 stock: {
                   type: 'number',

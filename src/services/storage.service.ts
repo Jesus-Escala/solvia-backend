@@ -34,6 +34,10 @@ export const storageService = {
     return save('proofs', buffer, EXTENSIONS[mimeType] ?? 'bin');
   },
 
+  saveProductImage(buffer: Buffer, mimeType: string) {
+    return save('products', buffer, EXTENSIONS[mimeType] ?? 'bin');
+  },
+
   saveStatement(buffer: Buffer) {
     return save('statements', buffer, 'pdf');
   },

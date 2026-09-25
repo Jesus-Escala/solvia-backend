@@ -1,10 +1,13 @@
 import type { Product } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { adjustmentDelta } from '../domain/inventory';
+import { nextInternalCode } from '../domain/productCode';
 import { AppError } from '../errors/AppError';
 import { roundMoney, toNumber } from '../lib/money';
 import { prisma } from '../lib/prisma';
 import { requireTenantId } from '../lib/tenantContext';
 import { productRepository } from '../repositories/product.repository';
+import { storageService } from './storage.service';
 import { paginate, type Pagination } from '../validators/common.schemas';
 import type { AdjustStockInput } from '../validators/inventory.schemas';
 import type {
@@ -16,8 +19,10 @@ import type {
 export function toProductDto(product: Product) {
   return {
     id: product.id,
+    kind: product.kind,
     name: product.name,
     code: product.code,
+    imageUrl: product.imageUrl,
     unit: product.unit,
     price: roundMoney(toNumber(product.price)),
     cost: product.cost === null ? null : roundMoney(toNumber(product.cost)),
@@ -29,6 +34,15 @@ export function toProductDto(product: Product) {
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   };
+}
+
+const isUniqueViolation = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+
+/** A service is never counted: no stock control, alert level or sack size. */
+function forKind<T extends { kind?: 'product' | 'service' | undefined }>(input: T): T {
+  if (input.kind !== 'service') return input;
+  return { ...input, trackStock: false, minStock: null, packSize: null };
 }
 
 const codeTaken = () =>
@@ -49,11 +63,12 @@ async function findOrFail(id: string) {
 
 export const productService = {
   async list(query: ListProductsQuery) {
-    const { search, status, lowStock, sortBy, sortDir, ...pagination } = query;
+    const { search, status, lowStock, kind, sortBy, sortDir, ...pagination } = query;
     const [rows, total] = await productRepository.findMany({
       search,
       status,
       lowStock,
+      kind,
       pagination,
       orderBy: { field: sortBy, dir: sortDir },
     });
@@ -68,8 +83,10 @@ export const productService = {
     const rows = await productRepository.lookup(search, limit, sort === 'popular');
     return rows.map((row) => ({
       id: row.id,
+      kind: row.kind,
       name: row.name,
       code: row.code,
+      imageUrl: row.imageUrl,
       unit: row.unit,
       price: roundMoney(toNumber(row.price)),
       cost: row.cost === null ? null : roundMoney(toNumber(row.cost)),
@@ -149,15 +166,50 @@ export const productService = {
     return toProductDto(await findOrFail(id));
   },
 
+  /**
+   * Creates a product or a service. Without a code of its own it gets the next internal one
+   * (its QR code). A service is never counted in stock.
+   */
   async create(input: CreateProductInput) {
-    await assertCodeAvailable(input.code);
-    return toProductDto(await productRepository.create(input));
+    const data = forKind(input);
+    if (data.code) {
+      await assertCodeAvailable(data.code);
+      return toProductDto(await productRepository.create({ ...data, code: data.code }));
+    }
+    // Two products created at once may take the same internal code: try the next one.
+    for (let attempt = 0; ; attempt += 1) {
+      const code = nextInternalCode(await productRepository.highestInternalCode());
+      try {
+        return toProductDto(await productRepository.create({ ...data, code }));
+      } catch (error) {
+        if (isUniqueViolation(error) && attempt < 3) continue;
+        throw error;
+      }
+    }
   },
 
+  /** Clearing the code gives the product a new internal one: every product keeps a code. */
   async update(id: string, input: UpdateProductInput) {
+    const current = await findOrFail(id);
+    const data = forKind({ kind: current.kind, ...input });
+    if (data.code === null) {
+      data.code = nextInternalCode(await productRepository.highestInternalCode());
+    } else {
+      await assertCodeAvailable(data.code, id);
+    }
+    return toProductDto(await productRepository.update(id, data));
+  },
+
+  /** Replaces the picture of a product. */
+  async setImage(id: string, file: { buffer: Buffer; mimetype: string }) {
     await findOrFail(id);
-    await assertCodeAvailable(input.code, id);
-    return toProductDto(await productRepository.update(id, input));
+    const imageUrl = await storageService.saveProductImage(file.buffer, file.mimetype);
+    return toProductDto(await productRepository.update(id, { imageUrl }));
+  },
+
+  async removeImage(id: string) {
+    await findOrFail(id);
+    return toProductDto(await productRepository.update(id, { imageUrl: null }));
   },
 
   /** Deletes a product never sold; used ones can only be archived so history stays intact. */

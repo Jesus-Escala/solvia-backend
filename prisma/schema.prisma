@@ -84,6 +84,12 @@ enum PurchaseStatus {
 }
 
 /// Unit a product is sold in.
+/// What a catalog item is: a product (can be counted in stock) or a service (never counted).
+enum ProductKind {
+  product
+  service
+}
+
 enum ProductUnit {
   unit
   kg
@@ -387,8 +393,12 @@ model Product {
   id         String      @id @default(uuid())
   tenantId   String
   name       String
-  /// Optional barcode or internal code, unique within the business.
+  kind       ProductKind @default(product)
+  /// Barcode or internal code, unique within the business. When none is given Solvia assigns an
+  /// internal one ("2" + 7 digits, the in-store range), printed as the product's QR code.
   code       String?
+  /// Picture shown in the catalog and the point of sale (`/files/products/...`).
+  imageUrl   String?
   unit       ProductUnit @default(unit)
   price      Decimal     @db.Decimal(12, 2)
   cost       Decimal?    @db.Decimal(12, 2)
