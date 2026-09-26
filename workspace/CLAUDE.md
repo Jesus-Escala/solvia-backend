@@ -6,7 +6,7 @@
 document: test accounts first, how to run everything, modules, features, conventions, how the user
 works, decisions, pending list). Its editable source is `SOLVIA-CONTEXTO.fuente.html`: at the end of
 a working day update that file and regenerate the PDF (command at its end) instead of writing a
-session log. The old `BITACORA-SESION-*.txt` files are history only.
+session log.
 
 This folder is NOT a repository. It holds the four independent Solvia repositories, cloned side
 by side. Each one has its own git history, its own `CLAUDE.md` with the details, and its own
