@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { dateOnlySchema, moneySchema, paginationSchema, sortDirSchema } from './common.schemas';
+import {
+  dateOnlySchema,
+  moneySchema,
+  paginationSchema,
+  paymentPartsSchema,
+  sortDirSchema,
+} from './common.schemas';
 
 export const receivableStatusSchema = z.enum(['pending', 'partial', 'paid', 'overdue']);
 
@@ -63,12 +69,27 @@ export const listReceivablesQuerySchema = paginationSchema.extend({
 
 export const paymentMethodSchema = z.enum(['yape', 'plin', 'cash', 'bank_transfer']);
 
-export const createPaymentSchema = z.object({
-  amount: moneySchema,
-  method: paymentMethodSchema,
-  /** Defaults to today in the application timezone. */
-  date: dateOnlySchema.optional(),
-});
+/**
+ * A payment with one method (`amount` + `method`), or paid with several at once (`parts`, e.g.
+ * S/ 30 in cash and S/ 20 with Yape): one payment is recorded per method.
+ */
+export const createPaymentSchema = z
+  .object({
+    amount: moneySchema.optional(),
+    method: paymentMethodSchema.optional(),
+    parts: paymentPartsSchema.optional(),
+    /** Defaults to today in the application timezone. */
+    date: dateOnlySchema.optional(),
+  })
+  .superRefine((payment, ctx) => {
+    if (payment.parts) return;
+    if (payment.amount === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['amount'], message: 'How much was paid?' });
+    }
+    if (!payment.method) {
+      ctx.addIssue({ code: 'custom', path: ['method'], message: 'How was it paid?' });
+    }
+  });
 
 export type CreateReceivableInput = z.infer<typeof createReceivableSchema>;
 export type UpdateReceivableInput = z.infer<typeof updateReceivableSchema>;

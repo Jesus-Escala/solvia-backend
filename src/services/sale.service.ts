@@ -1,5 +1,6 @@
-import { Prisma, type Customer, type Sale, type SaleItem } from '@prisma/client';
+import { Prisma, type Customer, type Sale, type SaleItem, type SalePayment } from '@prisma/client';
 import { env } from '../config/env';
+import { mainMethod, mergeParts, partsMatch, sumParts } from '../domain/payments';
 import { deriveReceivableStatus, outstandingAmount } from '../domain/receivableStatus';
 import {
   DiscountTooHighError,
@@ -23,6 +24,7 @@ import { tenantRepository } from '../repositories/tenant.repository';
 type SaleWithRelations = Sale & {
   customer: Pick<Customer, 'id' | 'name' | 'phone'> | null;
   items: SaleItem[];
+  payments: SalePayment[];
   receivable: {
     id: string;
     status: string;
@@ -36,6 +38,7 @@ const EPSILON = 0.005;
 const saleInclude = {
   customer: { select: { id: true, name: true, phone: true } },
   items: { orderBy: { position: 'asc' } },
+  payments: { orderBy: { position: 'asc' } },
   receivable: { select: { id: true, status: true, totalAmount: true, paidAmount: true } },
 } satisfies Prisma.SaleInclude;
 
@@ -48,6 +51,11 @@ export function toSaleDto(sale: SaleWithRelations) {
     customer: sale.customer,
     paymentType: sale.paymentType,
     method: sale.method,
+    /** How a cash sale was paid, one part per method (empty for credit sales). */
+    payments: sale.payments.map((payment) => ({
+      method: payment.method,
+      amount: roundMoney(toNumber(payment.amount)),
+    })),
     docType: sale.docType,
     docNumber: sale.docNumber,
     /** Sum of the lines, before the discount. */
@@ -216,7 +224,29 @@ export const saleService = {
             }
             throw error;
           }
-          const downPayment = input.paymentType === 'credit' ? (input.downPayment ?? 0) : 0;
+          // How it was paid: one method or several parts, each method once.
+          const cashParts =
+            input.paymentType !== 'cash'
+              ? []
+              : mergeParts(input.payments ?? [{ method: input.method!, amount: priced.total }]);
+          if (input.paymentType === 'cash' && !partsMatch(cashParts, priced.total)) {
+            throw new AppError(
+              400,
+              'PAYMENTS_DONT_MATCH_TOTAL',
+              'The payments do not add up to the total of the sale',
+              { total: priced.total, paid: sumParts(cashParts) },
+            );
+          }
+          const downParts =
+            input.paymentType !== 'credit'
+              ? []
+              : mergeParts(
+                  input.downPayments ??
+                    (input.downPayment && input.downPaymentMethod
+                      ? [{ method: input.downPaymentMethod, amount: input.downPayment }]
+                      : []),
+                );
+          const downPayment = sumParts(downParts);
           if (downPayment > 0 && downPayment >= priced.total - EPSILON) {
             throw new AppError(
               400,
@@ -232,7 +262,10 @@ export const saleService = {
               customerId: input.customerId ?? null,
               date,
               paymentType: input.paymentType,
-              method: input.paymentType === 'cash' ? input.method : null,
+              method: mainMethod(cashParts),
+              payments: {
+                create: cashParts.map((part, position) => ({ ...part, position })),
+              },
               docType: input.docType,
               docNumber: input.docNumber ?? null,
               discount: priced.discount,
@@ -306,12 +339,11 @@ export const saleService = {
                   today(),
                 ),
                 saleId: sale.id,
-                ...(downPayment > 0 &&
-                  input.downPaymentMethod && {
-                    payments: {
-                      create: [{ amount: downPayment, date, method: input.downPaymentMethod }],
-                    },
-                  }),
+                ...(downParts.length > 0 && {
+                  payments: {
+                    create: downParts.map((part) => ({ ...part, date })),
+                  },
+                }),
               },
             });
           }

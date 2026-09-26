@@ -1,7 +1,12 @@
 import { AdjustmentReason, SaleDocType } from '@prisma/client';
 import { z } from 'zod';
 import { phoneSchema } from './customer.schemas';
-import { dateOnlySchema, paginationSchema, sortDirSchema } from './common.schemas';
+import {
+  dateOnlySchema,
+  paginationSchema,
+  paymentPartsSchema,
+  sortDirSchema,
+} from './common.schemas';
 
 const optionalText = (max: number) =>
   z
@@ -59,6 +64,8 @@ export const createPurchaseSchema = z.object({
   docNumber: optionalText(40),
   /** Set each product's cost to what was paid now (default: yes). */
   updateCosts: z.boolean().default(true),
+  /** How it was paid to the supplier, one or several methods adding up to the total (optional). */
+  payments: paymentPartsSchema.optional(),
   items: z
     .array(
       z.object({

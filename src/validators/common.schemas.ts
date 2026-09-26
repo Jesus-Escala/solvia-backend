@@ -1,3 +1,4 @@
+import { PaymentMethod } from '@prisma/client';
 import { z } from 'zod';
 import { toDateOnly } from '../lib/dates';
 
@@ -23,6 +24,25 @@ export const moneySchema = z.coerce
   .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6, {
     message: 'Amount must have at most 2 decimals',
   });
+
+/**
+ * Several payment methods for one amount (e.g. part in cash, part with Yape): up to 4 parts.
+ * Multipart forms send it as a JSON string, which is parsed here.
+ */
+export const paymentPartsSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') return value;
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return value;
+    }
+  },
+  z
+    .array(z.object({ method: z.enum(PaymentMethod), amount: moneySchema }))
+    .min(1, 'Add at least one payment')
+    .max(4, 'At most 4 payment methods'),
+);
 
 /** Query of a picker search box: short text and a small page, no count. */
 export const lookupQuerySchema = z.object({

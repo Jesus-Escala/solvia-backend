@@ -33,7 +33,9 @@ const RECEIVABLE_SCOPED_MODELS = new Set<string>(['Payment', 'Notification']);
 /** Line models scoped through their parent document (only created nested in the parent). */
 const LINE_PARENTS: Record<string, 'sale' | 'purchase'> = {
   SaleItem: 'sale',
+  SalePayment: 'sale',
   PurchaseItem: 'purchase',
+  PurchasePayment: 'purchase',
 };
 
 const WHERE_OPERATIONS = new Set<string>([

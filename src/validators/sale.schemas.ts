@@ -1,6 +1,11 @@
 import { PaymentMethod, SaleDocType } from '@prisma/client';
 import { z } from 'zod';
-import { dateOnlySchema, paginationSchema, sortDirSchema } from './common.schemas';
+import {
+  dateOnlySchema,
+  paginationSchema,
+  paymentPartsSchema,
+  sortDirSchema,
+} from './common.schemas';
 
 const quantitySchema = z.coerce
   .number('Expected a number')
@@ -25,8 +30,10 @@ export const createSaleSchema = z
     /** Defaults to today (APP_TIMEZONE). */
     date: dateOnlySchema.optional(),
     paymentType: z.enum(['cash', 'credit']),
-    /** Required for cash sales. */
+    /** Cash sales paid with one method (or use `payments`). */
     method: z.enum(PaymentMethod).optional(),
+    /** Cash sales paid with several methods; they must add up to the total. */
+    payments: paymentPartsSchema.optional(),
     /** Required for credit sales: when the customer pays. */
     dueDate: dateOnlySchema.optional(),
     docType: z.enum(SaleDocType).default('none'),
@@ -65,6 +72,8 @@ export const createSaleSchema = z
     downPayment: unitPriceSchema.optional(),
     /** How the down payment was paid (required with one). */
     downPaymentMethod: z.enum(PaymentMethod).optional(),
+    /** Credit sale: a down payment made with several methods (instead of the two above). */
+    downPayments: paymentPartsSchema.optional(),
     notes: z
       .string()
       .trim()
@@ -81,8 +90,14 @@ export const createSaleSchema = z
         ctx.addIssue({ code: 'custom', path: ['downPaymentMethod'], message: 'How was it paid?' });
       }
     }
-    if (sale.paymentType === 'cash' && !sale.method) {
+    if (sale.paymentType === 'cash' && !sale.method && !sale.payments) {
       ctx.addIssue({ code: 'custom', path: ['method'], message: 'How was it paid?' });
+    }
+    if (sale.payments && sale.paymentType !== 'cash') {
+      ctx.addIssue({ code: 'custom', path: ['payments'], message: 'Only for cash sales' });
+    }
+    if (sale.downPayments && sale.paymentType !== 'credit') {
+      ctx.addIssue({ code: 'custom', path: ['downPayments'], message: 'Only for credit sales' });
     }
     if (sale.paymentType === 'credit') {
       if (!sale.customerId) {

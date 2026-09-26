@@ -107,26 +107,29 @@ receivableRouter.delete('/:id', requireRole('admin'), receivableController.remov
  *   post:
  *     tags: [Payments]
  *     summary: Register a partial or full payment (optionally with a proof image)
- *     description: Updates the receivable balance and status, then sends an updated account statement to the customer.
+ *     description: >
+ *       Updates the receivable balance and status, then sends an updated account statement to the
+ *       customer. Paid with several methods, send `parts` instead of amount + method (a JSON string
+ *       in multipart): one payment is recorded per method.
  *     requestBody:
  *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [amount, method]
  *             properties:
  *               amount: { type: number, example: 150.5 }
  *               method: { type: string, enum: [yape, plin, cash, bank_transfer] }
+ *               parts: { type: string, description: 'JSON: [{ method, amount }] (several methods)' }
  *               date: { type: string, format: date }
  *               proof: { type: string, format: binary, description: JPEG, PNG, WEBP or PDF }
  *         application/json:
  *           schema:
  *             type: object
- *             required: [amount, method]
  *             properties:
  *               amount: { type: number }
  *               method: { type: string, enum: [yape, plin, cash, bank_transfer] }
+ *               parts: { type: array, maxItems: 4, items: { type: object, required: [method, amount], properties: { method: { type: string, enum: [yape, plin, cash, bank_transfer] }, amount: { type: number } } } }
  *               date: { type: string, format: date }
  *     responses:
  *       201:
@@ -137,6 +140,7 @@ receivableRouter.delete('/:id', requireRole('admin'), receivableController.remov
  *               type: object
  *               properties:
  *                 payment: { $ref: '#/components/schemas/Payment' }
+ *                 payments: { type: array, items: { $ref: '#/components/schemas/Payment' } }
  *                 receivable: { $ref: '#/components/schemas/Receivable' }
  *       422: { $ref: '#/components/responses/Unprocessable' }
  */

@@ -1,4 +1,5 @@
 import { env } from '../config/env';
+import { mergeParts, sumParts } from '../domain/payments';
 import { deriveReceivableStatus, outstandingAmount } from '../domain/receivableStatus';
 import { AppError } from '../errors/AppError';
 import { todayInTimezone } from '../lib/dates';
@@ -23,9 +24,12 @@ export interface UploadedProof {
 export const paymentService = {
   /**
    * Registers a partial or full payment, updates the receivable balance and status atomically,
-   * and then sends the customer an updated account statement in the background.
+   * and then sends the customer an updated account statement in the background. Paid with
+   * several methods (`parts`), one payment per method is recorded (the proof goes with each).
    */
   async register(receivableId: string, input: CreatePaymentInput, proof?: UploadedProof) {
+    const parts = mergeParts(input.parts ?? [{ method: input.method!, amount: input.amount! }]);
+    const amount = sumParts(parts);
     const receivable = await receivableService.findOrFail(receivableId);
     const outstanding = outstandingAmount({
       totalAmount: toNumber(receivable.totalAmount),
@@ -35,7 +39,7 @@ export const paymentService = {
     if (outstanding <= 0) {
       throw new AppError(422, 'RECEIVABLE_ALREADY_PAID', 'This receivable is already fully paid');
     }
-    if (input.amount > outstanding + EPSILON) {
+    if (amount > outstanding + EPSILON) {
       throw new AppError(
         422,
         'PAYMENT_EXCEEDS_BALANCE',
@@ -55,13 +59,18 @@ export const paymentService = {
       : null;
 
     const result = await prisma.$transaction(async (tx) => {
-      const payment = await paymentRepository.create(
-        { receivableId, amount: input.amount, date: paymentDate, method: input.method, proofUrl },
-        tx,
-      );
+      const payments = [];
+      for (const part of parts) {
+        payments.push(
+          await paymentRepository.create(
+            { receivableId, amount: part.amount, date: paymentDate, method: part.method, proofUrl },
+            tx,
+          ),
+        );
+      }
       const incremented = await receivableRepository.update(
         receivableId,
-        { paidAmount: { increment: input.amount } },
+        { paidAmount: { increment: amount } },
         tx,
       );
 
@@ -84,7 +93,7 @@ export const paymentService = {
         status === incremented.status
           ? incremented
           : await receivableRepository.update(receivableId, { status }, tx);
-      return { payment, receivable: updated };
+      return { payments, receivable: updated };
     });
 
     // Fire-and-forget: statement delivery must not delay or fail the payment request.
@@ -93,7 +102,9 @@ export const paymentService = {
       .catch((error: unknown) => logger.error('Automatic statement dispatch failed', error));
 
     return {
-      payment: toPaymentDto(result.payment),
+      /** The first one (kept for clients that record a single method). */
+      payment: toPaymentDto(result.payments[0]!),
+      payments: result.payments.map(toPaymentDto),
       receivable: toReceivableDto(result.receivable),
     };
   },

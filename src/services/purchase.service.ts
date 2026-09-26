@@ -1,5 +1,12 @@
-import { Prisma, type Purchase, type PurchaseItem, type Supplier } from '@prisma/client';
+import {
+  Prisma,
+  type Purchase,
+  type PurchaseItem,
+  type PurchasePayment,
+  type Supplier,
+} from '@prisma/client';
 import { env } from '../config/env';
+import { mergeParts, partsMatch, sumParts } from '../domain/payments';
 import { roundQuantity, shortageOf } from '../domain/sales';
 import { AppError } from '../errors/AppError';
 import { formatDateOnly, todayInTimezone } from '../lib/dates';
@@ -13,11 +20,13 @@ import type { CreatePurchaseInput, ListPurchasesQuery } from '../validators/inve
 type PurchaseWithRelations = Purchase & {
   supplier: Pick<Supplier, 'id' | 'name' | 'phone'> | null;
   items: PurchaseItem[];
+  payments: PurchasePayment[];
 };
 
 const purchaseInclude = {
   supplier: { select: { id: true, name: true, phone: true } },
   items: { orderBy: { position: 'asc' } },
+  payments: { orderBy: { position: 'asc' } },
 } satisfies Prisma.PurchaseInclude;
 
 export function toPurchaseDto(purchase: PurchaseWithRelations) {
@@ -37,6 +46,11 @@ export function toPurchaseDto(purchase: PurchaseWithRelations) {
     docType: purchase.docType,
     docNumber: purchase.docNumber,
     total: roundMoney(toNumber(purchase.total)),
+    /** How it was paid to the supplier, one part per method (empty when not recorded). */
+    payments: purchase.payments.map((payment) => ({
+      method: payment.method,
+      amount: roundMoney(toNumber(payment.amount)),
+    })),
     status: purchase.status,
     createdAt: purchase.createdAt.toISOString(),
     voidedAt: purchase.voidedAt?.toISOString() ?? null,
@@ -143,6 +157,15 @@ export const purchaseService = {
             };
           });
           const total = roundMoney(lines.reduce((sum, line) => sum + line.subtotal, 0));
+          const payments = mergeParts(input.payments ?? []);
+          if (payments.length > 0 && !partsMatch(payments, total)) {
+            throw new AppError(
+              400,
+              'PAYMENTS_DONT_MATCH_TOTAL',
+              'The payments do not add up to the total of the purchase',
+              { total, paid: sumParts(payments) },
+            );
+          }
           const last = await tx.purchase.aggregate({ _max: { number: true } });
 
           const purchase = await tx.purchase.create({
@@ -156,6 +179,9 @@ export const purchaseService = {
               total,
               createdById: userId,
               items: { create: lines },
+              payments: {
+                create: payments.map((part, position) => ({ ...part, position })),
+              },
             },
           });
 

@@ -46,7 +46,8 @@ saleRouter.use(requireModule('sales'));
  *             required: [paymentType, items]
  *             properties:
  *               paymentType: { type: string, enum: [cash, credit] }
- *               method: { type: string, enum: [yape, plin, cash, bank_transfer], description: Required for cash sales }
+ *               method: { type: string, enum: [yape, plin, cash, bank_transfer], description: Cash sale paid with one method }
+ *               payments: { type: array, maxItems: 4, items: { type: object, required: [method, amount], properties: { method: { type: string, enum: [yape, plin, cash, bank_transfer] }, amount: { type: number } } }, description: Cash sale paid with several methods (they add up to the total; PAYMENTS_DONT_MATCH_TOTAL otherwise) }
  *               customerId: { type: string, format: uuid, description: Required for credit sales }
  *               dueDate: { type: string, format: date, description: Required for credit sales }
  *               date: { type: string, format: date, description: 'Default: today' }
@@ -55,6 +56,7 @@ saleRouter.use(requireModule('sales'));
  *               discount: { type: number, default: 0, description: Amount off the sum of the lines }
  *               downPayment: { type: number, description: Credit sale - paid now, less than the total }
  *               downPaymentMethod: { type: string, enum: [yape, plin, cash, bank_transfer] }
+ *               downPayments: { type: array, maxItems: 4, items: { type: object, required: [method, amount], properties: { method: { type: string, enum: [yape, plin, cash, bank_transfer] }, amount: { type: number } } }, description: Credit sale - a down payment with several methods }
  *               notes: { type: string, nullable: true, maxLength: 500 }
  *               items:
  *                 type: array

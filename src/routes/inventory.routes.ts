@@ -104,6 +104,7 @@ supplierRouter.delete('/:id', requireRole('admin'), supplierController.remove);
  *               docType: { type: string, enum: [none, sale_note, receipt, invoice] }
  *               docNumber: { type: string, nullable: true }
  *               updateCosts: { type: boolean, default: true }
+ *               payments: { type: array, maxItems: 4, items: { type: object, required: [method, amount], properties: { method: { type: string, enum: [yape, plin, cash, bank_transfer] }, amount: { type: number } } }, description: How it was paid to the supplier (optional; adds up to the total) }
  *               items:
  *                 type: array
  *                 items:
