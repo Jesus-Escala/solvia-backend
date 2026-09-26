@@ -95,4 +95,21 @@ saleRouter.use(requireModule('sales'));
 saleRouter.get('/', saleController.list);
 saleRouter.post('/', saleController.create);
 saleRouter.get('/:id', saleController.get);
+/**
+ * @openapi
+ * /sales/{id}/ticket:
+ *   get:
+ *     tags: [Sales]
+ *     summary: The ticket of a sale as an 80 mm PDF (receipt printer width), in the request language
+ *     description: A courtesy ticket (not an electronic receipt) - business, number, date and time, customer, lines, totals and how it was paid.
+ *     parameters:
+ *       - { $ref: '#/components/parameters/Id' }
+ *     responses:
+ *       200:
+ *         content:
+ *           application/pdf:
+ *             schema: { type: string, format: binary }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+saleRouter.get('/:id/ticket', saleController.ticket);
 saleRouter.post('/:id/void', saleController.void);

@@ -94,6 +94,8 @@ export function toSaleDto(sale: SaleWithRelations) {
   };
 }
 
+export type SaleDto = ReturnType<typeof toSaleDto>;
+
 const today = () => todayInTimezone(env.APP_TIMEZONE);
 
 /** Next sequential number of the business ("Venta #12"). */
