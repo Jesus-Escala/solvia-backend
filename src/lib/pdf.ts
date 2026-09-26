@@ -161,6 +161,14 @@ export function drawSectionTitle(doc: PdfDoc, title: string) {
 }
 
 const ROW_HEIGHT = 20;
+/** A row grows with its longest text up to this height; beyond it the text ends in "…". */
+const MAX_ROW_HEIGHT = 64;
+const CELL_PADDING_Y = 6;
+
+/** Smaller text for wide tables, so many columns still fit on the page. */
+function fontSizeFor(columns: PdfColumn[]) {
+  return columns.length >= 12 ? 7 : columns.length >= 9 ? 8 : 9;
+}
 
 /** Starts a new page when `height` does not fit; returns whether it did. */
 function ensureSpace(doc: PdfDoc, height: number): boolean {
@@ -176,10 +184,17 @@ function drawRow(
   doc: PdfDoc,
   columns: PdfColumn[],
   values: string[],
-  options: { bold?: boolean; fill?: string },
+  options: { bold?: boolean; fill?: string; onNewPage?: () => void },
 ) {
-  const rowHeight = ROW_HEIGHT;
-  ensureSpace(doc, rowHeight);
+  doc.font(options.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(fontSizeFor(columns));
+  // The row is as tall as its longest text (wrapped in its column), within a limit.
+  const tallest = Math.max(
+    ...columns.map((column, index) =>
+      doc.heightOfString(values[index] ?? '', { width: column.width - 8 }),
+    ),
+  );
+  const rowHeight = Math.min(Math.max(ROW_HEIGHT, tallest + CELL_PADDING_Y * 2), MAX_ROW_HEIGHT);
+  if (ensureSpace(doc, rowHeight)) options.onNewPage?.();
   const top = doc.y;
   const tableWidth = columns.reduce((sum, column) => sum + column.width, 0);
   if (options.fill) {
@@ -187,14 +202,14 @@ function drawRow(
   }
   doc
     .font(options.bold ? 'Helvetica-Bold' : 'Helvetica')
-    .fontSize(9)
+    .fontSize(fontSizeFor(columns))
     .fillColor(TEXT_COLOR);
   let x = PAGE_MARGIN;
   columns.forEach((column, index) => {
-    doc.text(values[index] ?? '', x + 4, top + 6, {
+    doc.text(values[index] ?? '', x + 4, top + CELL_PADDING_Y, {
       width: column.width - 8,
+      height: rowHeight - CELL_PADDING_Y * 2,
       align: column.align ?? 'left',
-      lineBreak: false,
       ellipsis: true,
     });
     x += column.width;
@@ -237,14 +252,9 @@ export function drawTable(
     doc.fillColor(TEXT_COLOR);
     return;
   }
-  for (const row of rows) {
-    if (ensureSpace(doc, ROW_HEIGHT)) header();
-    drawRow(doc, columns, row, {});
-  }
-  if (totals) {
-    if (ensureSpace(doc, ROW_HEIGHT)) header();
-    drawRow(doc, columns, totals, { bold: true, fill: '#F0FDFA' });
-  }
+  // A row that starts a new page repeats the header there first.
+  for (const row of rows) drawRow(doc, columns, row, { onNewPage: header });
+  if (totals) drawRow(doc, columns, totals, { bold: true, fill: '#F0FDFA', onNewPage: header });
 }
 
 /** Footer on every page (needs `bufferPages`). */

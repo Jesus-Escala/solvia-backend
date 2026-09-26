@@ -22,6 +22,8 @@ export interface TableColumn {
   kind: CellKind;
   /** Relative width (PDF columns share the page in this proportion). */
   weight: number;
+  /** The main amount of the report (highlighted on screen). */
+  main?: boolean;
 }
 
 export interface Kpi {
@@ -238,10 +240,11 @@ type Text = (typeof TEXT)[Locale];
 
 const money = (value: Parameters<typeof toNumber>[0]) => roundMoney(toNumber(value));
 const sum = (values: number[]) => roundMoney(values.reduce((total, value) => total + value, 0));
-const col = (header: string, kind: CellKind, weight: number): TableColumn => ({
+const col = (header: string, kind: CellKind, weight: number, main = false): TableColumn => ({
   header,
   kind,
   weight,
+  ...(main && { main }),
 });
 const kpi = (
   label: string,
@@ -288,15 +291,15 @@ async function salesLayouts(report: InsightReport, range: ReportRange, text: Tex
         dated: true,
         columns: [
           col(c.ticket, 'text', 1.2),
-          col(c.date, 'date', 1.6),
-          col(c.time, 'text', 1.1),
-          col(c.customer, 'text', 2.6),
-          col(c.products, 'text', 5),
-          col(c.units, 'number', 1.2),
+          col(c.date, 'date', 1.8),
+          col(c.time, 'text', 1.3),
+          col(c.customer, 'text', 2.4),
+          col(c.products, 'text', 4.4),
+          col(c.units, 'number', 1.6),
           col(c.type, 'text', 1.5),
-          col(c.paidWith, 'text', 2.8),
-          col(c.discount, 'money', 1.5),
-          col(c.total, 'money', 1.7),
+          col(c.paidWith, 'text', 2.6),
+          col(c.discount, 'money', 1.8),
+          col(c.total, 'money', 1.7, true),
           col(c.owes, 'money', 1.5),
           col(c.seller, 'text', 2),
           col(c.document, 'text', 2),
@@ -372,7 +375,7 @@ async function salesLayouts(report: InsightReport, range: ReportRange, text: Tex
           col(c.cash, 'money', 2),
           col(c.credit, 'money', 2),
           col(c.discount, 'money', 1.8),
-          col(c.total, 'money', 2),
+          col(c.total, 'money', 2, true),
           col(c.average, 'money', 2),
         ],
         rows: rows.map((row) => [
@@ -415,7 +418,7 @@ async function salesLayouts(report: InsightReport, range: ReportRange, text: Tex
         columns: [
           col(c.method, 'text', 3),
           col(c.sales, 'number', 1.5),
-          col(c.amount, 'money', 2),
+          col(c.amount, 'money', 2, true),
           col(c.share, 'number', 1.5),
         ],
         rows: rows.map((row) => [row.name, row.sales, row.amount, percent(row.amount, total)]),
@@ -449,7 +452,7 @@ async function salesLayouts(report: InsightReport, range: ReportRange, text: Tex
         dated: true,
         columns: [
           col(c.category, 'text', 3),
-          col(c.revenue, 'money', 2),
+          col(c.revenue, 'money', 2, true),
           col(c.share, 'number', 1.4),
           col(c.units, 'number', 1.4),
           col(c.productsCount, 'number', 1.8),
@@ -498,7 +501,7 @@ async function salesLayouts(report: InsightReport, range: ReportRange, text: Tex
         columns: [
           col(c.seller, 'text', 3),
           col(c.sales, 'number', 1.4),
-          col(c.total, 'money', 2),
+          col(c.total, 'money', 2, true),
           col(c.average, 'money', 2),
           col(c.share, 'number', 1.4),
         ],
@@ -537,12 +540,12 @@ async function purchaseLayouts(
         dated: true,
         columns: [
           col(c.purchase, 'text', 1.2),
-          col(c.date, 'date', 1.6),
+          col(c.date, 'date', 1.8),
           col(c.supplier, 'text', 2.6),
-          col(c.products, 'text', 5.4),
-          col(c.units, 'number', 1.2),
+          col(c.products, 'text', 5),
+          col(c.units, 'number', 1.6),
           col(c.paidWithYou, 'text', 2.8),
-          col(c.total, 'money', 1.8),
+          col(c.total, 'money', 1.8, true),
           col(c.document, 'text', 2),
           col(c.recordedBy, 'text', 2),
           col(c.status, 'text', 1.3),
@@ -592,7 +595,7 @@ async function purchaseLayouts(
         dated: true,
         columns: [
           col(c.supplier, 'text', 3.4),
-          col(c.spent, 'money', 2),
+          col(c.spent, 'money', 2, true),
           col(c.share, 'number', 1.4),
           col(c.purchases, 'number', 1.4),
           col(c.averagePurchase, 'money', 2),
@@ -639,7 +642,7 @@ async function purchaseLayouts(
         dated: true,
         columns: [
           col(c.product, 'text', 3.6),
-          col(c.spent, 'money', 2),
+          col(c.spent, 'money', 2, true),
           col(c.quantity, 'number', 1.4),
           col(c.unit, 'text', 1.3),
           col(c.averageCost, 'money', 1.8),

@@ -137,4 +137,20 @@ supplierRouter.delete('/:id', requireRole('admin'), supplierController.remove);
 purchaseRouter.get('/', purchaseController.list);
 purchaseRouter.post('/', purchaseController.create);
 purchaseRouter.get('/:id', purchaseController.get);
+/**
+ * @openapi
+ * /purchases/{id}/ticket:
+ *   get:
+ *     tags: [Inventory]
+ *     summary: The purchase as an 80 mm PDF (supplier, lines, total and how it was paid)
+ *     parameters:
+ *       - { $ref: '#/components/parameters/Id' }
+ *     responses:
+ *       200:
+ *         content:
+ *           application/pdf:
+ *             schema: { type: string, format: binary }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
+purchaseRouter.get('/:id/ticket', purchaseController.ticket);
 purchaseRouter.post('/:id/void', purchaseController.void);

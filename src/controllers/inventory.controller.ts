@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { getAuth } from '../middleware/tenantScope';
 import { purchaseService } from '../services/purchase.service';
 import { supplierService } from '../services/supplier.service';
+import { ticketService } from '../services/ticket.service';
 import { idParamSchema, lookupQuerySchema } from '../validators/common.schemas';
 import {
   createPurchaseSchema,
@@ -45,6 +46,17 @@ export const purchaseController = {
   async get(req: Request, res: Response) {
     const { id } = idParamSchema.parse(req.params);
     res.json(await purchaseService.getById(id));
+  },
+
+  /** The purchase as an 80 mm PDF (like a sale ticket), sent inline to preview it. */
+  async ticket(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    const { buffer, fileName } = await ticketService.purchasePdf(id);
+    res
+      .status(200)
+      .setHeader('Content-Type', 'application/pdf')
+      .setHeader('Content-Disposition', `inline; filename="${fileName}"`)
+      .send(buffer);
   },
 
   async create(req: Request, res: Response) {
