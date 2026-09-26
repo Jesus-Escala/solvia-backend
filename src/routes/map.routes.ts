@@ -1,19 +1,17 @@
 import { Router } from 'express';
 import { mapController } from '../controllers/map.controller';
 import { requireRole } from '../middleware/authenticate';
-import { requireModule } from '../middleware/requireModule';
 import { singleImageUpload } from '../middleware/upload';
 
-/** Floor plans of the business and where its products are kept (inventory module). */
+/** Floor plans of the business and where its products are kept (a tool of every business). */
 export const mapRouter = Router();
-mapRouter.use(requireModule('inventory'));
 
 /**
  * @openapi
  * /maps:
  *   get:
  *     tags: [Inventory]
- *     summary: Floor plans with their spots and the products kept in each (inventory module)
+ *     summary: Floor plans with their spots and the products kept in each
  *     responses:
  *       200: { description: '{ data: [{ id, name, imageUrl, aspect, position, spots: [{ id, name, x, y, color, products: [{ id, name, code, imageUrl, unit, trackStock, stock }] }] }] }' }
  *   post:

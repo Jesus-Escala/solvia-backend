@@ -61,7 +61,7 @@ async function findSpot(id: string) {
   return spot;
 }
 
-/** Floor plans of the business with the spots where its products are kept (inventory module). */
+/** Floor plans of the business with the spots where its products are kept (any business). */
 export const mapService = {
   async list() {
     return (await mapRepository.list()).map(toMapDto);
