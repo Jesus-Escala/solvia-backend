@@ -55,7 +55,10 @@ export type ProductOrderField =
   | 'createdAt';
 
 /** Every product comes with the name of its category. */
-export const productInclude = { category: { select: { id: true, name: true } } } as const;
+export const productInclude = {
+  category: { select: { id: true, name: true } },
+  spot: { select: { id: true, name: true, mapId: true, map: { select: { name: true } } } },
+} as const;
 
 /** Empty values (no code, cost or alert level; products without stock count) go last. */
 function productOrderBy(

@@ -11,6 +11,7 @@ import {
   productInclude,
   productRepository,
 } from '../repositories/product.repository';
+import { spotRepository } from '../repositories/map.repository';
 import { storageService } from './storage.service';
 import { paginate, type Pagination } from '../validators/common.schemas';
 import type { AdjustStockInput } from '../validators/inventory.schemas';
@@ -21,7 +22,10 @@ import type {
   UpdateProductInput,
 } from '../validators/product.schemas';
 
-type ProductWithCategory = Product & { category: { id: string; name: string } | null };
+type ProductWithCategory = Product & {
+  category: { id: string; name: string } | null;
+  spot: { id: string; name: string; mapId: string; map: { name: string } } | null;
+};
 
 export function toProductDto(product: ProductWithCategory) {
   return {
@@ -30,6 +34,13 @@ export function toProductDto(product: ProductWithCategory) {
     name: product.name,
     categoryId: product.categoryId,
     category: product.category,
+    spotId: product.spotId,
+    spot: product.spot && {
+      id: product.spot.id,
+      name: product.spot.name,
+      mapId: product.spot.mapId,
+      mapName: product.spot.map.name,
+    },
     code: product.code,
     imageUrl: product.imageUrl,
     unit: product.unit,
@@ -68,6 +79,12 @@ async function assertCodeAvailable(code: string | null | undefined, exceptId?: s
 async function assertCategoryExists(categoryId: string | null | undefined) {
   if (!categoryId) return;
   if (!(await categoryRepository.findById(categoryId))) throw AppError.notFound('Category');
+}
+
+/** The spot must be on a plan of the business (the scoped client hides the others). */
+async function assertSpotExists(spotId: string | null | undefined) {
+  if (!spotId) return;
+  if (!(await spotRepository.findById(spotId))) throw AppError.notFound('Spot');
 }
 
 const categoryTaken = () =>
@@ -207,6 +224,7 @@ export const productService = {
   async create(input: CreateProductInput) {
     const data = forKind(input);
     await assertCategoryExists(data.categoryId);
+    await assertSpotExists(data.spotId);
     if (data.code) {
       await assertCodeAvailable(data.code);
       return toProductDto(await productRepository.create({ ...data, code: data.code }));
@@ -228,6 +246,7 @@ export const productService = {
     const current = await findOrFail(id);
     const data = forKind({ kind: current.kind, ...input });
     await assertCategoryExists(data.categoryId);
+    await assertSpotExists(data.spotId);
     if (data.code === null) {
       data.code = nextInternalCode(await productRepository.highestInternalCode());
     } else {

@@ -33,6 +33,8 @@ const productFields = z.object({
   name: z.string().trim().min(2).max(120),
   /** Category of the business (null: none). */
   categoryId: z.uuid('Invalid identifier').nullish(),
+  /** Spot of a floor plan where it is kept (null: not placed). */
+  spotId: z.uuid('Invalid identifier').nullish(),
   code: optionalCode,
   unit: z.enum(ProductUnit),
   price: moneySchema,

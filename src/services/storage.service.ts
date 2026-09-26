@@ -38,6 +38,10 @@ export const storageService = {
     return save('products', buffer, EXTENSIONS[mimeType] ?? 'bin');
   },
 
+  saveMapImage(buffer: Buffer, mimeType: string) {
+    return save('maps', buffer, EXTENSIONS[mimeType] ?? 'bin');
+  },
+
   saveStatement(buffer: Buffer) {
     return save('statements', buffer, 'pdf');
   },

@@ -20,6 +20,8 @@ const DIRECT_TENANT_MODELS = new Set<string>([
   'MonthlyReport',
   'Product',
   'ProductCategory',
+  'StoreMap',
+  'MapSpot',
   'Sale',
   'StockMovement',
   'Supplier',
