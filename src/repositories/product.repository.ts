@@ -10,6 +10,7 @@ function listFilter(options: {
   status: 'active' | 'archived' | 'all';
   lowStock?: boolean;
   kind?: ProductKind;
+  categoryId?: string;
 }): Prisma.ProductWhereInput {
   // Each condition in its own AND entry: low stock and the search both need an OR.
   const and: Prisma.ProductWhereInput[] = [];
@@ -34,12 +35,27 @@ function listFilter(options: {
   return {
     ...(options.status !== 'all' && { active: options.status === 'active' }),
     ...(options.kind && { kind: options.kind }),
+    ...(options.categoryId && {
+      categoryId: options.categoryId === 'none' ? null : options.categoryId,
+    }),
     ...(and.length > 0 && { AND: and }),
   };
 }
 
 export type ProductOrderField =
-  'name' | 'code' | 'unit' | 'price' | 'cost' | 'margin' | 'stock' | 'minStock' | 'createdAt';
+  | 'name'
+  | 'code'
+  | 'category'
+  | 'unit'
+  | 'price'
+  | 'cost'
+  | 'margin'
+  | 'stock'
+  | 'minStock'
+  | 'createdAt';
+
+/** Every product comes with the name of its category. */
+export const productInclude = { category: { select: { id: true, name: true } } } as const;
 
 /** Empty values (no code, cost or alert level; products without stock count) go last. */
 function productOrderBy(
@@ -50,6 +66,8 @@ function productOrderBy(
     return [{ [field]: { sort: dir, nulls: 'last' } }];
   }
   if (field === 'stock') return [{ trackStock: 'desc' }, { stock: dir }];
+  // By category name, then by product name inside each category.
+  if (field === 'category') return [{ category: { name: dir } }, { name: 'asc' }];
   return [{ [field]: dir }];
 }
 
@@ -82,7 +100,10 @@ async function findManyByMargin(
     });
   const start = (pagination.page - 1) * pagination.pageSize;
   const ids = ordered.slice(start, start + pagination.pageSize).map((row) => row.id);
-  const rows = await prisma.product.findMany({ where: { id: { in: ids } } });
+  const rows = await prisma.product.findMany({
+    where: { id: { in: ids } },
+    include: productInclude,
+  });
   const byId = new Map(rows.map((row) => [row.id, row]));
   return [ids.map((id) => byId.get(id)!).filter(Boolean), all.length] as const;
 }
@@ -93,6 +114,7 @@ export const productRepository = {
     status: 'active' | 'archived' | 'all';
     lowStock?: boolean;
     kind?: ProductKind;
+    categoryId?: string;
     pagination: Pagination;
     orderBy: { field: ProductOrderField; dir: SortDir };
   }) {
@@ -102,6 +124,7 @@ export const productRepository = {
     return prisma.$transaction([
       prisma.product.findMany({
         where,
+        include: productInclude,
         orderBy: [...productOrderBy(orderBy.field, orderBy.dir), { id: 'asc' }],
         skip: (pagination.page - 1) * pagination.pageSize,
         take: pagination.pageSize,
@@ -111,7 +134,7 @@ export const productRepository = {
   },
 
   findById(id: string) {
-    return prisma.product.findUnique({ where: { id } });
+    return prisma.product.findUnique({ where: { id }, include: productInclude });
   },
 
   /**
@@ -120,7 +143,7 @@ export const productRepository = {
    * Uses the name trigram index. Raw SQL: filters by the tenant explicitly. With `popular`, what
    * sold most in the last 90 days goes first (then the same order).
    */
-  lookup(search: string, limit: number, popular = false) {
+  lookup(search: string, limit: number, popular = false, categoryId: string | null = null) {
     const tenantId = requireTenantId();
     const text = search.trim();
     const pattern = escapeLike(text);
@@ -138,11 +161,12 @@ export const productRepository = {
         packSize: Prisma.Decimal | null;
         kind: ProductKind;
         imageUrl: string | null;
+        categoryId: string | null;
         sold: number;
       }>
     >`
       SELECT p."id", p."name", p."code", p."unit", p."price", p."cost", p."trackStock", p."stock",
-             p."minStock", p."packSize", p."kind", p."imageUrl",
+             p."minStock", p."packSize", p."kind", p."imageUrl", p."categoryId",
              COALESCE(sold."lines", 0)::int AS "sold"
       FROM "products" p
       LEFT JOIN (
@@ -155,6 +179,7 @@ export const productRepository = {
       ) sold ON sold."productId" = p."id"
       WHERE p."tenantId" = ${tenantId}
         AND p."active"
+        AND (${categoryId}::text IS NULL OR p."categoryId" = ${categoryId})
         AND (${text} = ''
              OR p."code" = ${text}
              OR p."name" ILIKE '%' || ${pattern} || '%'
@@ -182,11 +207,14 @@ export const productRepository = {
   },
 
   create(data: CreateProductInput & { code: string }) {
-    return prisma.product.create({ data: { ...data, tenantId: requireTenantId() } });
+    return prisma.product.create({
+      data: { ...data, tenantId: requireTenantId() },
+      include: productInclude,
+    });
   },
 
   update(id: string, data: UpdateProductInput & { imageUrl?: string | null }) {
-    return prisma.product.update({ where: { id }, data });
+    return prisma.product.update({ where: { id }, data, include: productInclude });
   },
 
   /** Stock movements of a product, newest first, with the sale they come from (kardex). */
@@ -214,5 +242,42 @@ export const productRepository = {
 
   delete(id: string) {
     return prisma.product.delete({ where: { id } });
+  },
+};
+
+/** Categories of the business, by name, with how many active products each has. */
+export const categoryRepository = {
+  list() {
+    return prisma.productCategory.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { products: { where: { active: true } } } },
+      },
+    });
+  },
+
+  findById(id: string) {
+    return prisma.productCategory.findUnique({ where: { id } });
+  },
+
+  findByName(name: string) {
+    return prisma.productCategory.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' } },
+    });
+  },
+
+  create(name: string) {
+    return prisma.productCategory.create({ data: { name, tenantId: requireTenantId() } });
+  },
+
+  update(id: string, name: string) {
+    return prisma.productCategory.update({ where: { id }, data: { name } });
+  },
+
+  /** Its products stay, without a category (the foreign key sets null). */
+  delete(id: string) {
+    return prisma.productCategory.delete({ where: { id } });
   },
 };

@@ -132,6 +132,7 @@ function toTenantRow(tenant: TenantWithCounts, stats: ActivityStats) {
     plan: tenant.plan,
     status: tenant.status,
     modules: tenant.modules,
+    language: tenant.language,
     createdAt: tenant.createdAt.toISOString(),
     users: tenant._count.users,
     customers: tenant._count.customers,

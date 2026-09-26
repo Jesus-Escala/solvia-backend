@@ -53,6 +53,14 @@ describe('picker lookups', () => {
     expect(sql.text).not.toContain('OR 1=1');
     expect(sql.values).toContain("50\\%\\_off' OR 1=1");
   });
+
+  it('narrows the products to a category, as a bound parameter', async () => {
+    const category = '22222222-2222-4222-8222-222222222222';
+    await runWithTenant(TENANT, () => productRepository.lookup('', 60, true, category));
+    const sql = rawQueries[0]!;
+    expect(sql.text).toMatch(/"categoryId" = \$\d+/);
+    expect(sql.values).toContain(category);
+  });
 });
 
 describe('escapeLike', () => {

@@ -31,6 +31,8 @@ const productFields = z.object({
   /** A service is never counted in stock. */
   kind: z.enum(ProductKind),
   name: z.string().trim().min(2).max(120),
+  /** Category of the business (null: none). */
+  categoryId: z.uuid('Invalid identifier').nullish(),
   code: optionalCode,
   unit: z.enum(ProductUnit),
   price: moneySchema,
@@ -61,8 +63,10 @@ export const updateProductSchema = productFields
  */
 export const productLookupQuerySchema = z.object({
   search: z.string().max(120).default(''),
-  limit: z.coerce.number().int().min(1).max(60).default(8),
+  limit: z.coerce.number().int().min(1).max(100).default(8),
   sort: z.enum(['relevance', 'popular']).default('relevance'),
+  /** Only the products of this category (the point-of-sale category chips). */
+  categoryId: z.uuid('Invalid identifier').optional(),
 });
 
 export const listProductsQuerySchema = paginationSchema.extend({
@@ -72,17 +76,34 @@ export const listProductsQuerySchema = paginationSchema.extend({
   status: z.enum(['active', 'archived', 'all']).default('active'),
   /** Only products or only services. */
   kind: z.enum(ProductKind).optional(),
+  /** Only the products of a category, or `none` for those without one. */
+  categoryId: z.union([z.uuid('Invalid identifier'), z.literal('none')]).optional(),
   /** Only counted products at or below their alert level (0 when none is set). */
   lowStock: z
     .enum(['true', 'false'])
     .transform((value) => value === 'true')
     .optional(),
   sortBy: z
-    .enum(['name', 'code', 'unit', 'price', 'cost', 'margin', 'stock', 'minStock', 'createdAt'])
+    .enum([
+      'name',
+      'code',
+      'category',
+      'unit',
+      'price',
+      'cost',
+      'margin',
+      'stock',
+      'minStock',
+      'createdAt',
+    ])
     .default('name'),
   sortDir: sortDirSchema,
 });
 
+/** Name of a product category, unique within the business (ignoring case). */
+export const categorySchema = z.object({ name: z.string().trim().min(2).max(60) });
+
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type ListProductsQuery = z.infer<typeof listProductsQuerySchema>;
+export type CategoryInput = z.infer<typeof categorySchema>;

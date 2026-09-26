@@ -44,12 +44,12 @@ export const updateTenantSchema = z
     status: tenantStatusSchema.optional(),
     /** Full list of enabled optional modules (replaces the current one; duplicates removed). */
     modules: tenantModulesSchema.transform((modules) => [...new Set(modules)]).optional(),
+    /** Language of the automatic reminders. */
+    language: z.enum(['es', 'en']).optional(),
   })
-  .refine(
-    (value) =>
-      value.plan !== undefined || value.status !== undefined || value.modules !== undefined,
-    { message: 'At least one of plan, status or modules is required' },
-  );
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: 'At least one of plan, status, modules or language is required',
+  });
 
 /** Business created by the platform admin (managed onboarding) with its first admin user. */
 export const createTenantSchema = z.object({

@@ -97,6 +97,31 @@ settingsRouter.post(
  *           unlimited). Manual reminders from the owner's WhatsApp are never counted.
  */
 settingsRouter.get('/plan', settingsController.planUsage);
+/**
+ * @openapi
+ * /settings/business:
+ *   get:
+ *     tags: [Settings]
+ *     summary: Business settings (the language automatic reminders are written in)
+ *     responses:
+ *       200: { description: "{ language: 'es' | 'en' }" }
+ *   put:
+ *     tags: [Settings]
+ *     summary: Change the business settings (admin only)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [language]
+ *             properties:
+ *               language: { type: string, enum: [es, en] }
+ *     responses:
+ *       200: { description: "{ language: 'es' | 'en' }" }
+ */
+settingsRouter.get('/business', settingsController.getBusiness);
+settingsRouter.put('/business', requireRole('admin'), settingsController.updateBusiness);
 settingsRouter.get('/reminders', collections, settingsController.getReminderRules);
 settingsRouter.put(
   '/reminders',

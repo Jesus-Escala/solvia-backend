@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { settingsService } from '../services/settings.service';
 import {
+  businessSettingsSchema,
   reminderSettingsSchema,
   templateTypeParamSchema,
   updateTemplateSchema,
@@ -21,6 +22,14 @@ export const settingsController = {
   async resetTemplate(req: Request, res: Response) {
     const { type } = templateTypeParamSchema.parse(req.params);
     res.json(await settingsService.resetTemplate(type));
+  },
+
+  async getBusiness(_req: Request, res: Response) {
+    res.json(await settingsService.getBusiness());
+  },
+
+  async updateBusiness(req: Request, res: Response) {
+    res.json(await settingsService.updateBusiness(businessSettingsSchema.parse(req.body)));
   },
 
   async planUsage(_req: Request, res: Response) {

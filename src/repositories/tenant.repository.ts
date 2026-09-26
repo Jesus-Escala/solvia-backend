@@ -1,4 +1,4 @@
-import type { MessageTemplateType, TenantModule, TenantPlan } from '@prisma/client';
+import type { MessageTemplateType, TenantLanguage, TenantModule, TenantPlan } from '@prisma/client';
 import { DEFAULT_REMINDER_RULES } from '../domain/reminderRules';
 import { DEFAULT_TEMPLATES } from '../domain/template';
 import { basePrisma, prisma } from '../lib/prisma';
@@ -52,12 +52,17 @@ export const tenantRepository = {
   listActiveIds() {
     return basePrisma.tenant.findMany({
       where: { status: 'active' },
-      select: { id: true, name: true },
+      select: { id: true, name: true, language: true },
     });
   },
 
   /** The tenant of the current context. */
   findCurrent() {
     return prisma.tenant.findFirst();
+  },
+
+  /** Changes the language of the current tenant (the scoped client adds its id). */
+  updateLanguage(tenantId: string, language: TenantLanguage) {
+    return prisma.tenant.update({ where: { id: tenantId }, data: { language } });
   },
 };

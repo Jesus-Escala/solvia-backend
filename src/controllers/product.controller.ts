@@ -1,10 +1,11 @@
 import type { Request, Response } from 'express';
 import { AppError } from '../errors/AppError';
 import { getAuth } from '../middleware/tenantScope';
-import { productService } from '../services/product.service';
+import { categoryService, productService } from '../services/product.service';
 import { adjustStockSchema } from '../validators/inventory.schemas';
 import { idParamSchema, paginationSchema } from '../validators/common.schemas';
 import {
+  categorySchema,
   createProductSchema,
   listProductsQuerySchema,
   productLookupQuerySchema,
@@ -17,8 +18,8 @@ export const productController = {
   },
 
   async lookup(req: Request, res: Response) {
-    const { search, limit, sort } = productLookupQuerySchema.parse(req.query);
-    res.json({ data: await productService.lookup(search, limit, sort) });
+    const { search, limit, sort, categoryId } = productLookupQuerySchema.parse(req.query);
+    res.json({ data: await productService.lookup(search, limit, sort, categoryId ?? null) });
   },
 
   async get(req: Request, res: Response) {
@@ -60,6 +61,25 @@ export const productController = {
   async remove(req: Request, res: Response) {
     const { id } = idParamSchema.parse(req.params);
     await productService.delete(id);
+    res.status(204).send();
+  },
+
+  async listCategories(_req: Request, res: Response) {
+    res.json({ data: await categoryService.list() });
+  },
+
+  async createCategory(req: Request, res: Response) {
+    res.status(201).json(await categoryService.create(categorySchema.parse(req.body)));
+  },
+
+  async renameCategory(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    res.json(await categoryService.rename(id, categorySchema.parse(req.body)));
+  },
+
+  async removeCategory(req: Request, res: Response) {
+    const { id } = idParamSchema.parse(req.params);
+    await categoryService.delete(id);
     res.status(204).send();
   },
 };

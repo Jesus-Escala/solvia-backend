@@ -19,7 +19,9 @@ productRouter.use(requireModule('catalog'));
  *       - { in: query, name: search, schema: { type: string }, description: Name or code }
  *       - { in: query, name: status, schema: { type: string, enum: [active, archived, all], default: active } }
  *       - { in: query, name: lowStock, schema: { type: string, enum: ['true'] }, description: Counted products at or below their alert level }
- *       - { in: query, name: sortBy, schema: { type: string, enum: [name, code, price, cost, createdAt], default: name } }
+ *       - { in: query, name: kind, schema: { type: string, enum: [product, service] } }
+ *       - { in: query, name: categoryId, schema: { type: string }, description: A category id, or none for products without one }
+ *       - { in: query, name: sortBy, schema: { type: string, enum: [name, code, category, unit, price, cost, margin, stock, minStock, createdAt], default: name } }
  *       - { in: query, name: sortDir, schema: { type: string, enum: [asc, desc], default: asc } }
  *       - { $ref: '#/components/parameters/Page' }
  *       - { $ref: '#/components/parameters/PageSize' }
@@ -49,10 +51,51 @@ productRouter.use(requireModule('catalog'));
  *     description: No pagination or count; uses the name trigram index. Built for search-as-you-type and barcode scanners.
  *     parameters:
  *       - { in: query, name: search, schema: { type: string } }
- *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 60, default: 8 } }
+ *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 8 } }
  *       - { in: query, name: sort, schema: { type: string, enum: [relevance, popular], default: relevance }, description: popular puts the best sellers of the last 90 days first (point-of-sale catalog) }
+ *       - { in: query, name: categoryId, schema: { type: string, format: uuid }, description: Only the products of this category }
  *     responses:
- *       200: { description: '{ data: [{ id, name, code, unit, price, cost, trackStock, stock, minStock, packSize, sold }] }' }
+ *       200: { description: '{ data: [{ id, name, code, categoryId, unit, price, cost, trackStock, stock, minStock, packSize, sold }] }' }
+ * /products/categories:
+ *   get:
+ *     tags: [Catalog]
+ *     summary: Product categories of the business, by name
+ *     responses:
+ *       200: { description: '{ data: [{ id, name, products }] } (products = active products in it)' }
+ *   post:
+ *     tags: [Catalog]
+ *     summary: Create a category
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { type: object, required: [name], properties: { name: { type: string } } }
+ *     responses:
+ *       201: { description: '{ id, name, products }' }
+ *       409: { description: CATEGORY_NAME_TAKEN }
+ * /products/categories/{id}:
+ *   patch:
+ *     tags: [Catalog]
+ *     summary: Rename a category
+ *     parameters:
+ *       - { $ref: '#/components/parameters/Id' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { type: object, required: [name], properties: { name: { type: string } } }
+ *     responses:
+ *       200: { description: '{ id, name, products }' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *       409: { description: CATEGORY_NAME_TAKEN }
+ *   delete:
+ *     tags: [Catalog]
+ *     summary: Delete a category (its products stay, without a category)
+ *     parameters:
+ *       - { $ref: '#/components/parameters/Id' }
+ *     responses:
+ *       204: { description: Deleted }
+ *       404: { $ref: '#/components/responses/NotFound' }
  * /products/{id}/adjust:
  *   post:
  *     tags: [Catalog]
@@ -134,6 +177,10 @@ productRouter.use(requireModule('catalog'));
 productRouter.get('/', productController.list);
 productRouter.post('/', productController.create);
 productRouter.get('/lookup', productController.lookup);
+productRouter.get('/categories', productController.listCategories);
+productRouter.post('/categories', productController.createCategory);
+productRouter.patch('/categories/:id', productController.renameCategory);
+productRouter.delete('/categories/:id', productController.removeCategory);
 productRouter.get('/:id', productController.get);
 productRouter.get('/:id/movements', productController.movements);
 productRouter.post('/:id/adjust', requireModule('inventory'), productController.adjust);

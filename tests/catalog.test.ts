@@ -3,6 +3,7 @@ import { hasModule } from '../src/domain/modules';
 import { nextInternalCode } from '../src/domain/productCode';
 import { updateTenantSchema } from '../src/validators/platform.schemas';
 import {
+  categorySchema,
   createProductSchema,
   productLookupQuerySchema,
   listProductsQuerySchema,
@@ -34,6 +35,11 @@ describe('tenant modules', () => {
     expect(() => updateTenantSchema.parse({ modules: ['accounting'] })).toThrow();
     expect(() => updateTenantSchema.parse({})).toThrow();
   });
+
+  it('lets the backoffice change the language of the automatic reminders', () => {
+    expect(updateTenantSchema.parse({ language: 'en' })).toEqual({ language: 'en' });
+    expect(() => updateTenantSchema.parse({ language: 'fr' })).toThrow();
+  });
 });
 
 describe('product schemas', () => {
@@ -55,13 +61,13 @@ describe('product schemas', () => {
     expect(() => createProductSchema.parse({ name: 'Otro', price: 1, kind: 'bundle' })).toThrow();
   });
 
-  it('serves the point-of-sale catalog by best sellers, up to 60', () => {
+  it('serves the point-of-sale catalog by best sellers, up to 100', () => {
     expect(productLookupQuerySchema.parse({})).toEqual({ search: '', limit: 8, sort: 'relevance' });
     expect(productLookupQuerySchema.parse({ limit: '48', sort: 'popular' })).toMatchObject({
       limit: 48,
       sort: 'popular',
     });
-    expect(() => productLookupQuerySchema.parse({ limit: 61 })).toThrow();
+    expect(() => productLookupQuerySchema.parse({ limit: 101 })).toThrow();
   });
 
   it('applies defaults and turns an empty code into null', () => {
@@ -95,6 +101,30 @@ describe('product schemas', () => {
   it('allows archiving alone and requires at least one field', () => {
     expect(updateProductSchema.parse({ active: false })).toEqual({ active: false });
     expect(() => updateProductSchema.parse({})).toThrow();
+  });
+
+  it('takes a category, or none, on a product and in the filters', () => {
+    const category = '22222222-2222-4222-8222-222222222222';
+    expect(
+      createProductSchema.parse({ name: 'Gaseosa', price: 3, categoryId: category }),
+    ).toMatchObject({ categoryId: category });
+    expect(updateProductSchema.parse({ categoryId: null })).toEqual({ categoryId: null });
+    expect(() => createProductSchema.parse({ name: 'Pan', price: 1, categoryId: 'x' })).toThrow();
+    expect(listProductsQuerySchema.parse({ categoryId: 'none' })).toMatchObject({
+      categoryId: 'none',
+    });
+    expect(listProductsQuerySchema.parse({ sortBy: 'category' })).toMatchObject({
+      sortBy: 'category',
+    });
+    expect(productLookupQuerySchema.parse({ categoryId: category })).toMatchObject({
+      categoryId: category,
+    });
+  });
+
+  it('names categories with 2 to 60 characters', () => {
+    expect(categorySchema.parse({ name: '  Bebidas ' })).toEqual({ name: 'Bebidas' });
+    expect(() => categorySchema.parse({ name: 'B' })).toThrow();
+    expect(() => categorySchema.parse({ name: 'x'.repeat(61) })).toThrow();
   });
 
   it('lists active products by name by default', () => {

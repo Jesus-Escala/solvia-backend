@@ -29,6 +29,12 @@ enum TenantStatus {
 
 /// Optional modules a business can have enabled (from the backoffice). Debt collection is always on.
 /// The product catalog is available when any of them is enabled.
+/// Language of what Solvia writes for the business without a request (automatic reminders).
+enum TenantLanguage {
+  es
+  en
+}
+
 enum TenantModule {
   /// Cobranza: receivables (credit), payments, WhatsApp reminders, statements and the dashboard.
   collections
@@ -155,6 +161,8 @@ model Tenant {
   status    TenantStatus   @default(active)
   /// Modules the business pays for (at least one). Cobranza is the usual start.
   modules   TenantModule[] @default([collections])
+  /// Language of the automatic reminders and other messages sent by scheduled jobs.
+  language  TenantLanguage @default(es)
   createdAt DateTime       @default(now())
 
   users            User[]
@@ -165,6 +173,7 @@ model Tenant {
   monthlyReports   MonthlyReport[]
   accessRequests   AccessRequest[]
   products         Product[]
+  categories       ProductCategory[]
   sales            Sale[]
   stockMovements   StockMovement[]
   suppliers        Supplier[]
@@ -394,6 +403,8 @@ model Product {
   tenantId   String
   name       String
   kind       ProductKind @default(product)
+  /// Group shown as a filter in the catalog and the point of sale (e.g. "Bebidas").
+  categoryId String?
   /// Barcode or internal code, unique within the business. When none is given Solvia assigns an
   /// internal one ("2" + 7 digits, the in-store range), printed as the product's QR code.
   code       String?
@@ -415,16 +426,33 @@ model Product {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category       ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   saleItems      SaleItem[]
   purchaseItems  PurchaseItem[]
   stockMovements StockMovement[]
 
   @@unique([tenantId, code])
   @@index([tenantId, active, name])
+  @@index([categoryId])
   /// Trigram index: fast "name contains …" search in the product picker (pg_trgm).
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_name_trgm_idx")
   @@map("products")
+}
+
+/// Group of products of a business (e.g. "Bebidas", "Limpieza"). Deleting it leaves its
+/// products without a category.
+model ProductCategory {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([tenantId, name])
+  @@map("product_categories")
 }
 
 /// A sale with its items. Cash sales are paid at the counter; credit sales create a receivable.

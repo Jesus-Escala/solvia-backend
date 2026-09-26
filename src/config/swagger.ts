@@ -667,6 +667,12 @@ export const openApiSpec = swaggerJsdoc({
           required: ['name', 'price'],
           properties: {
             name: { type: 'string', example: 'Arroz Costeño 5 kg' },
+            categoryId: {
+              type: 'string',
+              format: 'uuid',
+              nullable: true,
+              description: 'Category of the business (GET /products/categories)',
+            },
             code: {
               type: 'string',
               nullable: true,

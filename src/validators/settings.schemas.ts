@@ -20,6 +20,9 @@ export const reminderSettingsSchema = z.object({
   overdueEveryDays: z.number().int().min(0).max(30),
 });
 
+/** Business settings: the language automatic reminders are written in. */
+export const businessSettingsSchema = z.object({ language: z.enum(['es', 'en']) });
+
 export const cashFlowQuerySchema = z.object({
   groupBy: z.enum(['week', 'month']).default('week'),
   periods: z.coerce.number().int().min(1).max(24).default(8),
@@ -39,3 +42,4 @@ export const reportPeriodParamSchema = z.object({ period: periodSchema });
 export const generateReportSchema = z.object({ period: periodSchema.optional() });
 
 export type ReminderSettingsInput = z.infer<typeof reminderSettingsSchema>;
+export type BusinessSettingsInput = z.infer<typeof businessSettingsSchema>;

@@ -1,4 +1,10 @@
-import { Prisma, type TenantModule, type TenantPlan, type TenantStatus } from '@prisma/client';
+import {
+  Prisma,
+  type TenantLanguage,
+  type TenantModule,
+  type TenantPlan,
+  type TenantStatus,
+} from '@prisma/client';
 import { basePrisma } from '../lib/prisma';
 import { sqlLocalDay, sqlLocalDayWithin } from './sql';
 import { tenantUserSelect } from './user.repository';
@@ -94,7 +100,12 @@ export const platformRepository = {
 
   updateTenant(
     id: string,
-    data: { plan?: TenantPlan; status?: TenantStatus; modules?: TenantModule[] },
+    data: {
+      plan?: TenantPlan;
+      status?: TenantStatus;
+      modules?: TenantModule[];
+      language?: TenantLanguage;
+    },
   ) {
     return basePrisma.tenant.update({ where: { id }, data });
   },

@@ -6,21 +6,30 @@ import { AppError } from '../errors/AppError';
 import { roundMoney, toNumber } from '../lib/money';
 import { prisma } from '../lib/prisma';
 import { requireTenantId } from '../lib/tenantContext';
-import { productRepository } from '../repositories/product.repository';
+import {
+  categoryRepository,
+  productInclude,
+  productRepository,
+} from '../repositories/product.repository';
 import { storageService } from './storage.service';
 import { paginate, type Pagination } from '../validators/common.schemas';
 import type { AdjustStockInput } from '../validators/inventory.schemas';
 import type {
+  CategoryInput,
   CreateProductInput,
   ListProductsQuery,
   UpdateProductInput,
 } from '../validators/product.schemas';
 
-export function toProductDto(product: Product) {
+type ProductWithCategory = Product & { category: { id: string; name: string } | null };
+
+export function toProductDto(product: ProductWithCategory) {
   return {
     id: product.id,
     kind: product.kind,
     name: product.name,
+    categoryId: product.categoryId,
+    category: product.category,
     code: product.code,
     imageUrl: product.imageUrl,
     unit: product.unit,
@@ -55,6 +64,20 @@ async function assertCodeAvailable(code: string | null | undefined, exceptId?: s
   if (existing && existing.id !== exceptId) throw codeTaken();
 }
 
+/** The category must be one of the business (the scoped client hides the others). */
+async function assertCategoryExists(categoryId: string | null | undefined) {
+  if (!categoryId) return;
+  if (!(await categoryRepository.findById(categoryId))) throw AppError.notFound('Category');
+}
+
+const categoryTaken = () =>
+  new AppError(409, 'CATEGORY_NAME_TAKEN', 'Another category already has this name');
+
+async function assertCategoryNameAvailable(name: string, exceptId?: string) {
+  const existing = await categoryRepository.findByName(name);
+  if (existing && existing.id !== exceptId) throw categoryTaken();
+}
+
 async function findOrFail(id: string) {
   const product = await productRepository.findById(id);
   if (!product) throw AppError.notFound('Product');
@@ -63,12 +86,13 @@ async function findOrFail(id: string) {
 
 export const productService = {
   async list(query: ListProductsQuery) {
-    const { search, status, lowStock, kind, sortBy, sortDir, ...pagination } = query;
+    const { search, status, lowStock, kind, categoryId, sortBy, sortDir, ...pagination } = query;
     const [rows, total] = await productRepository.findMany({
       search,
       status,
       lowStock,
       kind,
+      categoryId,
       pagination,
       orderBy: { field: sortBy, dir: sortDir },
     });
@@ -79,14 +103,20 @@ export const productService = {
    * Picker search: exact code first, then name prefix, then name contains (active only).
    * `popular` puts the best sellers of the last 90 days first (the point-of-sale catalog).
    */
-  async lookup(search: string, limit: number, sort: 'relevance' | 'popular' = 'relevance') {
-    const rows = await productRepository.lookup(search, limit, sort === 'popular');
+  async lookup(
+    search: string,
+    limit: number,
+    sort: 'relevance' | 'popular' = 'relevance',
+    categoryId: string | null = null,
+  ) {
+    const rows = await productRepository.lookup(search, limit, sort === 'popular', categoryId);
     return rows.map((row) => ({
       id: row.id,
       kind: row.kind,
       name: row.name,
       code: row.code,
       imageUrl: row.imageUrl,
+      categoryId: row.categoryId,
       unit: row.unit,
       price: roundMoney(toNumber(row.price)),
       cost: row.cost === null ? null : roundMoney(toNumber(row.cost)),
@@ -132,7 +162,7 @@ export const productService = {
    */
   async adjust(id: string, input: AdjustStockInput, userId: string | null) {
     return prisma.$transaction(async (tx) => {
-      const product = await tx.product.findUnique({ where: { id } });
+      const product = await tx.product.findUnique({ where: { id }, include: productInclude });
       if (!product) throw AppError.notFound('Product');
       if (!product.trackStock) {
         throw new AppError(
@@ -145,7 +175,11 @@ export const productService = {
       const updated =
         delta === 0
           ? product
-          : await tx.product.update({ where: { id }, data: { stock: { increment: delta } } });
+          : await tx.product.update({
+              where: { id },
+              data: { stock: { increment: delta } },
+              include: productInclude,
+            });
       await tx.stockMovement.create({
         data: {
           tenantId: requireTenantId(),
@@ -172,6 +206,7 @@ export const productService = {
    */
   async create(input: CreateProductInput) {
     const data = forKind(input);
+    await assertCategoryExists(data.categoryId);
     if (data.code) {
       await assertCodeAvailable(data.code);
       return toProductDto(await productRepository.create({ ...data, code: data.code }));
@@ -192,6 +227,7 @@ export const productService = {
   async update(id: string, input: UpdateProductInput) {
     const current = await findOrFail(id);
     const data = forKind({ kind: current.kind, ...input });
+    await assertCategoryExists(data.categoryId);
     if (data.code === null) {
       data.code = nextInternalCode(await productRepository.highestInternalCode());
     } else {
@@ -223,5 +259,37 @@ export const productService = {
       );
     }
     await productRepository.delete(id);
+  },
+};
+
+/** Product categories: a filter in the catalog and the point of sale. */
+export const categoryService = {
+  async list() {
+    const rows = await categoryRepository.list();
+    return rows.map((row) => ({ id: row.id, name: row.name, products: row._count.products }));
+  },
+
+  async create({ name }: CategoryInput) {
+    await assertCategoryNameAvailable(name);
+    try {
+      const row = await categoryRepository.create(name);
+      return { id: row.id, name: row.name, products: 0 };
+    } catch (error) {
+      if (isUniqueViolation(error)) throw categoryTaken();
+      throw error;
+    }
+  },
+
+  async rename(id: string, { name }: CategoryInput) {
+    if (!(await categoryRepository.findById(id))) throw AppError.notFound('Category');
+    await assertCategoryNameAvailable(name, id);
+    await categoryRepository.update(id, name);
+    return (await this.list()).find((row) => row.id === id)!;
+  },
+
+  /** Its products are kept, without a category. */
+  async delete(id: string) {
+    if (!(await categoryRepository.findById(id))) throw AppError.notFound('Category');
+    await categoryRepository.delete(id);
   },
 };

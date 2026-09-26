@@ -8,6 +8,9 @@ import {
   TEMPLATE_PLACEHOLDERS,
 } from '../domain/template';
 import { currentLocale } from '../lib/locale';
+import { requireTenantId } from '../lib/tenantContext';
+import { tenantRepository } from '../repositories/tenant.repository';
+import type { BusinessSettingsInput } from '../validators/settings.schemas';
 import {
   reminderSettingsRepository,
   templateRepository,
@@ -25,6 +28,17 @@ function toRules(settings: ReminderRules): ReminderRules {
 }
 
 export const settingsService = {
+  /** Language of the automatic reminders (scheduled jobs have no request to take it from). */
+  async getBusiness() {
+    const tenant = await tenantRepository.findCurrent();
+    return { language: tenant?.language ?? 'es' };
+  },
+
+  async updateBusiness(input: BusinessSettingsInput) {
+    const tenant = await tenantRepository.updateLanguage(requireTenantId(), input.language);
+    return { language: tenant.language };
+  },
+
   /** Returns one template per type, falling back to the built-in defaults. */
   async listTemplates() {
     const stored = await templateRepository.list();

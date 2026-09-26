@@ -19,6 +19,7 @@ const DIRECT_TENANT_MODELS = new Set<string>([
   'ReminderSettings',
   'MonthlyReport',
   'Product',
+  'ProductCategory',
   'Sale',
   'StockMovement',
   'Supplier',
