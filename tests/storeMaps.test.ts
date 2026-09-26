@@ -13,7 +13,12 @@ const id = '33333333-3333-4333-8333-333333333333';
 
 describe('floor plan schemas', () => {
   it('takes a named plan and its picture shape', () => {
-    expect(mapSchema.parse({ name: '  Tienda ' })).toEqual({ name: 'Tienda' });
+    expect(mapSchema.parse({ name: '  Tienda ' })).toEqual({ name: 'Tienda', aspect: 1.5 });
+    expect(mapSchema.parse({ name: 'Almacén', aspect: 2.2 })).toEqual({
+      name: 'Almacén',
+      aspect: 2.2,
+    });
+    expect(updateMapSchema.parse({ aspect: 1 })).toEqual({ aspect: 1 });
     expect(() => mapSchema.parse({ name: '' })).toThrow();
     expect(mapImageSchema.parse({ aspect: '1.25' })).toEqual({ aspect: 1.25 });
     expect(mapImageSchema.parse({})).toEqual({ aspect: 1.5 });

@@ -44,9 +44,9 @@ export const mapRepository = {
     return prisma.storeMap.count();
   },
 
-  create(name: string, position: number) {
+  create(name: string, aspect: number, position: number) {
     return prisma.storeMap.create({
-      data: { name, position, tenantId: requireTenantId() },
+      data: { name, aspect, position, tenantId: requireTenantId() },
       include: mapInclude,
     });
   },

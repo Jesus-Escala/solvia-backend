@@ -28,6 +28,7 @@ mapRouter.use(requireModule('inventory'));
  *             required: [name]
  *             properties:
  *               name: { type: string, example: Tienda }
+ *               aspect: { type: number, description: 'Width / height of a shop drawn in the app (1.5 by default); a picture sets its own' }
  *     responses:
  *       201: { description: The plan }
  *       409: { description: MAP_NAME_TAKEN }
@@ -46,6 +47,7 @@ mapRouter.use(requireModule('inventory'));
  *             type: object
  *             properties:
  *               name: { type: string }
+ *               aspect: { type: number }
  *               position: { type: integer }
  *     responses:
  *       200: { description: The plan }

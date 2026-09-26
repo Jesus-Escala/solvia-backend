@@ -73,7 +73,7 @@ export const mapService = {
       throw new AppError(422, 'MAP_LIMIT_REACHED', `A business can keep up to ${MAX_MAPS} plans`);
     }
     await assertNameAvailable(input.name);
-    return toMapDto(await mapRepository.create(input.name, count));
+    return toMapDto(await mapRepository.create(input.name, input.aspect, count));
   },
 
   async update(id: string, input: UpdateMapInput) {
