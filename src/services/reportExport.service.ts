@@ -14,7 +14,9 @@ import {
 } from '../lib/pdf';
 import { tenantRepository } from '../repositories/tenant.repository';
 import type { ExportFormat, ReportId, ReportRange } from '../validators/report.schemas';
+import { insightsService, type Kpi } from './insights.service';
 import { reportService } from './report.service';
+import { INSIGHT_REPORTS, type InsightReport } from '../validators/report.schemas';
 
 /**
  * Downloadable reports (`GET /reports/:report/export?format=xlsx|pdf`): the same rows and totals
@@ -40,11 +42,13 @@ interface Layout {
   /** Bold last line; null cells stay empty. */
   totals: Cell[] | null;
   empty: string;
+  /** Headline figures (self-describing reports only). */
+  kpis?: Kpi[];
 }
 
 const TEXT = {
   es: {
-    tagline: 'Créditos y cobranzas',
+    tagline: 'Ventas, compras y cobranza',
     total: 'Total',
     walkIn: 'Cliente de paso',
     voided: 'anulada',
@@ -110,7 +114,7 @@ const TEXT = {
     },
   },
   en: {
-    tagline: 'Credit & collections',
+    tagline: 'Sales, purchases & collections',
     total: 'Total',
     walkIn: 'Walk-in customer',
     voided: 'voided',
@@ -197,6 +201,9 @@ function localDateTime(iso: string, locale: Locale): string {
 async function buildLayout(report: ReportId, range: ReportRange, text: Text): Promise<Layout> {
   const c = text.columns;
   const locale = currentLocale();
+  if ((INSIGHT_REPORTS as readonly string[]).includes(report)) {
+    return insightsService.layout(report as InsightReport, range);
+  }
   switch (report) {
     case 'sales-by-customer': {
       const data = await reportService.salesByCustomer(range);
@@ -374,10 +381,15 @@ async function buildLayout(report: ReportId, range: ReportRange, text: Text): Pr
         empty: text.empty[report],
       };
     }
+    default:
+      throw new Error(`Unknown report ${report}`);
   }
 }
 
 const EXCEL_TITLE_ROWS = 3;
+
+/** A `YYYY-MM-DD` value (a date column also holds the word "Total" on its totals line). */
+const isDate = (value: Cell) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 function currencySymbol(locale: Locale): string {
   return (
@@ -416,7 +428,7 @@ async function toExcel(layout: Layout, subtitle: string, locale: Locale): Promis
   header.height = 20;
 
   const toCell = (value: Cell, kind: Kind) =>
-    value === null ? null : kind === 'date' ? toDateOnly(String(value)) : value;
+    value === null ? null : kind === 'date' && isDate(value) ? toDateOnly(String(value)) : value;
   const addRow = (values: Cell[]) => {
     const row = sheet.addRow(
       values.map((value, index) => toCell(value, layout.columns[index]!.kind)),
@@ -458,7 +470,9 @@ function toPdf(layout: Layout, subtitle: string, text: Text, locale: Locale): Pr
     if (value === null) return '';
     if (kind === 'money') return money(Number(value));
     if (kind === 'number') return number.format(Number(value));
-    if (kind === 'date') return formatDisplayDate(toDateOnly(String(value)), locale);
+    if (kind === 'date' && isDate(value)) {
+      return formatDisplayDate(toDateOnly(String(value)), locale);
+    }
     return String(value);
   };
 

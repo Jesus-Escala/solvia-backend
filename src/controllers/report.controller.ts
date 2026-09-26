@@ -2,11 +2,13 @@ import type { Request, Response } from 'express';
 import { env } from '../config/env';
 import { todayInTimezone } from '../lib/dates';
 import { reportExportService } from '../services/reportExport.service';
+import { insightsService } from '../services/insights.service';
 import { reportService } from '../services/report.service';
 import {
   exportFormatSchema,
   exportParamsSchema,
   reportRangeSchema,
+  tableParamsSchema,
 } from '../validators/report.schemas';
 
 const rangeOf = (req: Request) =>
@@ -31,6 +33,20 @@ export const reportController = {
 
   async shortages(req: Request, res: Response) {
     res.json(await reportService.shortages(rangeOf(req)));
+  },
+
+  /** A self-describing report: columns, rows, totals and headline figures, in the request language. */
+  async table(req: Request, res: Response) {
+    const { report } = tableParamsSchema.parse(req.params);
+    res.json(await insightsService.layout(report, rangeOf(req)));
+  },
+
+  async salesDashboard(req: Request, res: Response) {
+    res.json(await insightsService.sales(rangeOf(req)));
+  },
+
+  async purchasesDashboard(req: Request, res: Response) {
+    res.json(await insightsService.purchases(rangeOf(req)));
   },
 
   /** The report as a file (`xlsx` or `pdf`), sent inline so the app can preview it. */

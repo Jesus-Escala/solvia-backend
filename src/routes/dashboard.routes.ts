@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { dashboardController } from '../controllers/dashboard.controller';
+import { reportController } from '../controllers/report.controller';
 import { requireRole } from '../middleware/authenticate';
 import { requireModule } from '../middleware/requireModule';
 
@@ -76,6 +77,35 @@ const collections = requireModule('collections');
  *             schema: { $ref: '#/components/schemas/DebtConcentration' }
  *       400: { $ref: '#/components/responses/ValidationError' }
  */
+/**
+ * @openapi
+ * /dashboard/sales:
+ *   get:
+ *     tags: [Dashboard]
+ *     summary: Sales dashboard of a range (sales module)
+ *     description: Totals and the previous range of the same length, by day, by local hour, the 10 best-selling products, the 10 best customers, how it was paid and by category.
+ *     parameters:
+ *       - { $ref: '#/components/parameters/ReportFrom' }
+ *       - { $ref: '#/components/parameters/ReportTo' }
+ *     responses:
+ *       200: { description: Sales dashboard }
+ * /dashboard/purchases:
+ *   get:
+ *     tags: [Dashboard]
+ *     summary: Purchases dashboard of a range (inventory module)
+ *     description: Totals and the previous range, by day, the 10 main suppliers and products, and how they were paid.
+ *     parameters:
+ *       - { $ref: '#/components/parameters/ReportFrom' }
+ *       - { $ref: '#/components/parameters/ReportTo' }
+ *     responses:
+ *       200: { description: Purchases dashboard }
+ */
+dashboardRouter.get('/dashboard/sales', requireModule('sales'), reportController.salesDashboard);
+dashboardRouter.get(
+  '/dashboard/purchases',
+  requireModule('inventory'),
+  reportController.purchasesDashboard,
+);
 dashboardRouter.get('/dashboard/summary', collections, dashboardController.summary);
 dashboardRouter.get('/dashboard/cash-flow', collections, dashboardController.cashFlow);
 dashboardRouter.get('/dashboard/analytics', collections, dashboardController.analytics);

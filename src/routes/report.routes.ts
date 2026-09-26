@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { reportController } from '../controllers/report.controller';
 import type { ModuleRequirement } from '../domain/modules';
 import { requireModule } from '../middleware/requireModule';
@@ -73,7 +73,43 @@ const EXPORT_MODULES: Record<ReportId, ModuleRequirement | null> = {
   'collections-by-customer': 'collections',
   stock: 'catalog',
   shortages: 'sales',
+  'sales-detail': 'sales',
+  'sales-by-day': 'sales',
+  'sales-by-method': 'sales',
+  'sales-by-category': 'sales',
+  'sales-by-seller': 'sales',
+  'purchases-detail': 'inventory',
+  'purchases-by-supplier': 'inventory',
+  'purchases-by-product': 'inventory',
 };
+
+/** Only with the module the report needs (unknown reports get the validation error). */
+const reportModule: RequestHandler = (req, res, next) => {
+  const module = EXPORT_MODULES[req.params.report as ReportId];
+  if (!module) return next();
+  return requireModule(module)(req, res, next);
+};
+
+/**
+ * @openapi
+ * /reports/{report}/table:
+ *   get:
+ *     tags: [Reports]
+ *     summary: A self-describing report (columns with their kind, rows, totals and headline figures)
+ *     description: >
+ *       sales-detail (every ticket), sales-by-day, sales-by-method, sales-by-category,
+ *       sales-by-seller (sales module); purchases-detail, purchases-by-supplier,
+ *       purchases-by-product (inventory module). Texts in the request language; the same content
+ *       as its PDF / Excel export. Cell kinds - text, money, number, date (YYYY-MM-DD).
+ *     parameters:
+ *       - { in: path, name: report, required: true, schema: { type: string } }
+ *       - { $ref: '#/components/parameters/ReportFrom' }
+ *       - { $ref: '#/components/parameters/ReportTo' }
+ *     responses:
+ *       200: { description: '{ title, dated, columns: [{ header, kind, weight }], rows, totals, empty, kpis: [{ label, value, kind, tone }] }' }
+ *       403: { description: MODULE_NOT_ENABLED }
+ */
+reportRouter.get('/:report/table', reportModule, reportController.table);
 
 /**
  * @openapi
@@ -86,7 +122,7 @@ const EXPORT_MODULES: Record<ReportId, ModuleRequirement | null> = {
  *       file name) so the app can preview it before downloading. Excel keeps real numbers and
  *       dates, a frozen header and filters; the PDF is landscape A4 with the Solvia header.
  *     parameters:
- *       - { in: path, name: report, required: true, schema: { type: string, enum: [sales-by-customer, sales-by-product, collections-by-customer, stock, shortages] } }
+ *       - { in: path, name: report, required: true, schema: { type: string, enum: [sales-by-customer, sales-by-product, collections-by-customer, stock, shortages, sales-detail, sales-by-day, sales-by-method, sales-by-category, sales-by-seller, purchases-detail, purchases-by-supplier, purchases-by-product] } }
  *       - { in: query, name: format, required: true, schema: { type: string, enum: [xlsx, pdf] } }
  *       - { $ref: '#/components/parameters/ReportFrom' }
  *       - { $ref: '#/components/parameters/ReportTo' }
@@ -94,12 +130,4 @@ const EXPORT_MODULES: Record<ReportId, ModuleRequirement | null> = {
  *       200: { description: The file }
  *       403: { description: MODULE_NOT_ENABLED }
  */
-reportRouter.get(
-  '/:report/export',
-  (req, res, next) => {
-    const module = EXPORT_MODULES[req.params.report as ReportId];
-    if (!module) return next();
-    return requireModule(module)(req, res, next);
-  },
-  reportController.export,
-);
+reportRouter.get('/:report/export', reportModule, reportController.export);
