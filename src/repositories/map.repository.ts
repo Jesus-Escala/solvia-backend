@@ -66,7 +66,10 @@ export const spotRepository = {
     return prisma.mapSpot.findUnique({ where: { id } });
   },
 
-  create(mapId: string, data: { name: string; x: number; y: number; color: string }) {
+  create(
+    mapId: string,
+    data: { name: string; x: number; y: number; w: number; h: number; color: string },
+  ) {
     return prisma.mapSpot.create({ data: { ...data, mapId, tenantId: requireTenantId() } });
   },
 

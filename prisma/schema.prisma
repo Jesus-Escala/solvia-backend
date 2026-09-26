@@ -486,9 +486,12 @@ model MapSpot {
   tenantId  String
   mapId     String
   name      String
-  /// Position on the plan, as a fraction of its width and height (0 to 1).
+  /// Center of the area on the plan, as a fraction of its width and height (0 to 1).
   x         Float
   y         Float
+  /// Size of the area (a shelf, a fridge…) as a fraction of the plan's width and height.
+  w         Float    @default(0.1)
+  h         Float    @default(0.08)
   color     String   @default("teal")
   createdAt DateTime @default(now())
 

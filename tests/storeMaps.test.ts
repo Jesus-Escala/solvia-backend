@@ -26,10 +26,21 @@ describe('floor plan schemas', () => {
       name: 'Estante A',
       x: 0.2,
       y: 0.8,
+      w: 0.1,
+      h: 0.08,
       color: 'primary',
     });
+    expect(spotSchema.parse({ name: 'Góndola', x: 0.5, y: 0.5, w: 0.3, h: '0.2' })).toMatchObject({
+      w: 0.3,
+      h: 0.2,
+    });
+    expect(() => spotSchema.parse({ name: 'Punto', x: 0.5, y: 0.5, w: 0 })).toThrow();
     expect(() => spotSchema.parse({ name: 'Fuera', x: 1.2, y: 0.5 })).toThrow();
     expect(() => spotSchema.parse({ name: 'Rojo', x: 0, y: 0, color: '#f00' })).toThrow();
+    expect(() => spotSchema.parse({ name: 'Rojo', x: 0, y: 0, color: 'red' })).toThrow();
+    expect(spotSchema.parse({ name: 'Rosa', x: 0, y: 0, color: '#EC4899' })).toMatchObject({
+      color: '#ec4899',
+    });
     expect(updateSpotSchema.parse({ x: 0.5, y: 0.5 })).toEqual({ x: 0.5, y: 0.5 });
     expect(() => updateSpotSchema.parse({})).toThrow();
   });

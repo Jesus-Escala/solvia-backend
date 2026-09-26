@@ -26,6 +26,8 @@ export function toMapDto(map: MapWithSpots) {
       name: spot.name,
       x: spot.x,
       y: spot.y,
+      w: spot.w,
+      h: spot.h,
       color: spot.color,
       products: spot.products.map((product) => ({
         id: product.id,

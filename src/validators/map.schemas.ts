@@ -1,10 +1,22 @@
 import { z } from 'zod';
 
-/** Pin colors of the spots (the app draws them with its theme tokens). */
+/** Theme colors of the first spots (the app draws them with its tokens). */
 export const SPOT_COLORS = ['primary', 'info', 'success', 'warning', 'danger', 'accent'] as const;
+
+/** A theme color or any color picked by the business ("#0d9488"; stored in lowercase). */
+const spotColorSchema = z.union([
+  z.enum(SPOT_COLORS),
+  z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Expected a color like #0d9488')
+    .transform((value) => value.toLowerCase()),
+]);
 
 /** Position on the plan as a fraction of its width or height. */
 const fraction = z.coerce.number('Expected a number').min(0).max(1);
+/** Size of an area as a fraction of the plan (from a thin shelf to the whole room). */
+const size = z.coerce.number('Expected a number').min(0.01).max(1);
 
 export const mapSchema = z.object({
   name: z.string().trim().min(1).max(60),
@@ -27,7 +39,9 @@ export const spotSchema = z.object({
   name: z.string().trim().min(1).max(60),
   x: fraction,
   y: fraction,
-  color: z.enum(SPOT_COLORS).default('primary'),
+  w: size.default(0.1),
+  h: size.default(0.08),
+  color: spotColorSchema.default('primary'),
 });
 
 export const updateSpotSchema = z
@@ -35,7 +49,9 @@ export const updateSpotSchema = z
     name: spotSchema.shape.name,
     x: fraction,
     y: fraction,
-    color: z.enum(SPOT_COLORS),
+    w: size,
+    h: size,
+    color: spotColorSchema,
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'At least one field is required');

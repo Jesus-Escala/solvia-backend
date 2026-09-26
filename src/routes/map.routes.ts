@@ -85,7 +85,7 @@ mapRouter.use(requireModule('inventory'));
  * /maps/{id}/spots:
  *   post:
  *     tags: [Inventory]
- *     summary: Mark a spot on the plan (a shelf, a fridge…)
+ *     summary: Mark an area on the plan (a shelf, a fridge…); x and y are its center
  *     parameters:
  *       - { $ref: '#/components/parameters/Id' }
  *     requestBody:
@@ -99,7 +99,9 @@ mapRouter.use(requireModule('inventory'));
  *               name: { type: string, example: Estante A }
  *               x: { type: number, minimum: 0, maximum: 1, description: Fraction of the width }
  *               y: { type: number, minimum: 0, maximum: 1, description: Fraction of the height }
- *               color: { type: string, enum: [primary, info, success, warning, danger, accent] }
+ *               w: { type: number, minimum: 0.01, maximum: 1, description: Width of the area (fraction), 0.1 by default }
+ *               h: { type: number, minimum: 0.01, maximum: 1, description: Height of the area (fraction), 0.08 by default }
+ *               color: { type: string, description: 'A color like #0d9488 (or a theme color: primary, info, success, warning, danger, accent)' }
  *     responses:
  *       201: { description: The plan with the new spot }
  *       422: { description: SPOT_LIMIT_REACHED }
@@ -119,6 +121,8 @@ mapRouter.use(requireModule('inventory'));
  *               name: { type: string }
  *               x: { type: number }
  *               y: { type: number }
+ *               w: { type: number }
+ *               h: { type: number }
  *               color: { type: string }
  *     responses:
  *       200: { description: The plan }
