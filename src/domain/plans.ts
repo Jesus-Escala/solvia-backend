@@ -17,7 +17,7 @@ export interface PlanAllowance {
 /** The free plan: Cobranza for a business that is starting, manual reminders only. */
 export const FREE_ALLOWANCE: PlanAllowance = { automaticMessages: 0, users: 1, customers: 25 };
 
-/** Paid plans by number of modules (any of Cobranza, Ventas, Inventario). */
+/** Paid plans by number of modules (any of Comercial, Cuentas por cobrar, Logística). */
 export const PAID_ALLOWANCES: Record<1 | 2 | 3, PlanAllowance> = {
   1: { automaticMessages: 150, users: 2, customers: 500 },
   2: { automaticMessages: 400, users: 4, customers: 2000 },

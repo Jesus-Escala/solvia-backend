@@ -1,11 +1,12 @@
 import type { TenantModule } from '@prisma/client';
 
 /**
- * Modules a business pays for: Cobranza (`collections`), Ventas (`sales`) and Inventario
- * (`inventory`), any of them on its own or together (at least one). Two capabilities are shared
- * and not modules of their own:
- * - `catalog` (products): with Ventas or Inventario, because both need it.
- * - `customers`: with Cobranza or Ventas (who owes, who bought).
+ * Modules a business pays for: Comercial (`sales`), Cuentas por cobrar (`collections`) and
+ * Logística (`inventory`), any of them on its own or together (at least one). The shared records
+ * ("Mantenimientos") are not modules of their own:
+ * - `catalog` (products): with Comercial or Logística, because both need it.
+ * - `customers`: with Cuentas por cobrar or Comercial (who owes, who bought).
+ * - suppliers come with Logística. Floor plans (Ubicaciones) are for every business.
  */
 export type ModuleRequirement = TenantModule | 'catalog' | 'customers';
 
