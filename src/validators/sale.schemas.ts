@@ -122,7 +122,9 @@ export const listSalesQuerySchema = paginationSchema.extend({
     .transform((value) => value === 'true')
     .optional(),
   /** Without it: newest first. */
-  sortBy: z.enum(['number', 'date', 'customer', 'items', 'paymentType', 'total']).optional(),
+  sortBy: z
+    .enum(['number', 'date', 'customer', 'items', 'paymentType', 'method', 'total'])
+    .optional(),
   sortDir: sortDirSchema,
 });
 

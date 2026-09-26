@@ -6,7 +6,7 @@ import {
   type Supplier,
 } from '@prisma/client';
 import { env } from '../config/env';
-import { mergeParts, partsMatch, sumParts } from '../domain/payments';
+import { mainMethod, mergeParts, partsMatch, sumParts } from '../domain/payments';
 import { roundQuantity, shortageOf } from '../domain/sales';
 import { AppError } from '../errors/AppError';
 import { formatDateOnly, todayInTimezone } from '../lib/dates';
@@ -92,6 +92,9 @@ function purchaseOrderBy(
       return [{ items: { _count: dir } }, ...newest];
     case 'total':
       return [{ total: dir }, ...newest];
+    case 'method':
+      // Purchases without a recorded method go last.
+      return [{ method: { sort: dir, nulls: 'last' } }, ...newest];
   }
 }
 
@@ -178,6 +181,7 @@ export const purchaseService = {
               docNumber: input.docNumber ?? null,
               total,
               createdById: userId,
+              method: mainMethod(payments),
               items: { create: lines },
               payments: {
                 create: payments.map((part, position) => ({ ...part, position })),

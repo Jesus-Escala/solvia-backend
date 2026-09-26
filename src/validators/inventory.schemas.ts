@@ -85,7 +85,7 @@ export const listPurchasesQuerySchema = paginationSchema.extend({
   to: dateOnlySchema.optional(),
   status: z.enum(['completed', 'voided']).optional(),
   /** Without it: newest first. */
-  sortBy: z.enum(['number', 'date', 'supplier', 'items', 'total']).optional(),
+  sortBy: z.enum(['number', 'date', 'supplier', 'items', 'method', 'total']).optional(),
   sortDir: sortDirSchema,
 });
 

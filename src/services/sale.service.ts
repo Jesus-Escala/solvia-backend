@@ -131,6 +131,9 @@ function saleOrderBy(
       return [{ customer: { name: dir } }, ...newest];
     case 'items':
       return [{ items: { _count: dir } }, ...newest];
+    case 'method':
+      // Credit sales (no method) go last.
+      return [{ method: { sort: dir, nulls: 'last' } }, ...newest];
     default:
       return [{ [field]: dir }, ...newest];
   }
