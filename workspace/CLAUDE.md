@@ -2,9 +2,11 @@
 
 > Copy this file to the folder that contains the four repositories (`cp solvia-backend/workspace/CLAUDE.md ../CLAUDE.md` from this repo) so that tools like Claude Code opened there see the whole system.
 
-**Start of every session:** read the latest `BITACORA-SESION-<date>.txt` in this folder (handoff log
-with the full context of the last session: state, decisions, how the user works, pending list) before
-doing anything else. At the end of a working day the user asks for a new one for the next chat.
+**Start of every session:** read `SOLVIA-CONTEXTO.pdf` in this folder (the whole project in one
+document: test accounts first, how to run everything, modules, features, conventions, how the user
+works, decisions, pending list). Its editable source is `SOLVIA-CONTEXTO.fuente.html`: at the end of
+a working day update that file and regenerate the PDF (command at its end) instead of writing a
+session log. The old `BITACORA-SESION-*.txt` files are history only.
 
 This folder is NOT a repository. It holds the four independent Solvia repositories, cloned side
 by side. Each one has its own git history, its own `CLAUDE.md` with the details, and its own
@@ -52,8 +54,9 @@ also `npm run db:deploy && npm run db:seed` after starting `db:local`.
 With Docker instead: from `solvia-backend`,
 `docker compose -f docker-compose.yml -f docker-compose.full.yml up -d --build`.
 
-Demo accounts (password `Password123!`): business admin `admin@bodegasanmartin.pe`, collector
-`collector@bodegasanmartin.pe`, platform admin `admin@solvia.app`.
+Test accounts: see the first page of `SOLVIA-CONTEXTO.pdf` (the seed's demo accounts —
+`admin@bodegasanmartin.pe`, `collector@bodegasanmartin.pe` — only exist after `npm run db:seed`;
+platform admin `admin@solvia.app`).
 
 ## Changes that span several repositories
 
